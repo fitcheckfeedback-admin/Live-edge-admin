@@ -293,24 +293,30 @@ export function PlayerDetailSheet({ open, onOpenChange, player, props }: PlayerD
         </VisuallyHidden.Root>
         {/*
           Sticky close bar — lives at the TOP of the sheet as a real flex
-          row (NOT absolute-positioned). Earlier attempts using `position:
-          absolute` + safe-area-inset-top were hidden behind the iframe's
-          notch padding on mobile, so taps never reached the X. A real
-          flex row is always visible, full-width, and the 44x44 hit-target
-          meets the iOS/Android tap-target guideline.
+          row. Earlier iterations used a faint translucent X button that
+          users said they "couldn't see"; this version is a clearly-labeled
+          pill button with high contrast against the dark sheet background
+          plus a drag-handle bar that signals "swipeable sheet" by mobile
+          UI convention.
         */}
         <div
-          className="flex items-center justify-end px-2 py-2 border-b border-border bg-card shrink-0"
+          className="flex items-center justify-between px-3 py-2 border-b border-border bg-card shrink-0 relative"
           style={{ paddingTop: "max(0.5rem, env(safe-area-inset-top))" }}
         >
+          {/* iOS-style drag handle (visual affordance only) */}
+          <div className="absolute left-1/2 -translate-x-1/2 top-1.5 w-10 h-1 rounded-full bg-white/20" />
+          <span className="text-[11px] uppercase tracking-widest font-bold text-muted-foreground pl-1">
+            Player Detail
+          </span>
           <button
             type="button"
             onClick={() => onOpenChange(false)}
-            className="w-11 h-11 rounded-full bg-white/5 hover:bg-white/10 active:bg-white/15 flex items-center justify-center text-white"
+            className="inline-flex items-center gap-1.5 h-10 px-3.5 rounded-full bg-white text-slate-900 font-bold text-sm shadow-md active:scale-95 transition-transform"
             data-testid="button-close-sheet"
             aria-label="Close"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" strokeWidth={3} />
+            <span>Close</span>
           </button>
         </div>
 
