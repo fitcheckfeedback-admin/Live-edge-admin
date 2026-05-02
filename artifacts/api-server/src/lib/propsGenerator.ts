@@ -150,6 +150,22 @@ function countHits(values: number[], line: number): number {
   return values.reduce((sum, v) => sum + (v > line ? 1 : v === line ? 0.5 : 0), 0);
 }
 
+// Single source of truth for side selection. Used both upstream when building
+// factor objects (so opponent / weather / h2h impacts are signed for the
+// correct side) AND inside `buildPropFromRealData` for the final
+// recommendation. Previously these used different formulas (`hitRate10 > 0.5`
+// vs `avg5 - line >= 0`) which silently flipped factor impacts to the wrong
+// side and distorted winProbability for many props.
+function chooseSide(values: number[], line: number): boolean {
+  if (values.length === 0) return true;
+  const last10 = values.slice(-10);
+  const last5 = values.slice(-5);
+  const hitRate10 = countHits(last10, line) / Math.max(1, last10.length);
+  if (hitRate10 > 0.5) return true;
+  if (hitRate10 < 0.5) return false;
+  return mean(last5) - line >= 0;
+}
+
 // Pick the line that makes the historical hit rate closest to 50%. This is
 // what real sportsbooks do — the goal of the line is to split the action, not
 // to predict the mean. Anchoring the line on the raw mean creates structural
@@ -544,29 +560,21 @@ function buildPropFromRealData(input: PropInputs): PlayerProp | null {
   const avg5 = mean(last5);
   const sd = Math.max(0.5, stdev(last10));
 
-  // Skip props where the player has effectively no production in this category.
-  // A player who attempts a stolen base once every 10 games doesn't have a
-  // meaningful "Stolen Bases" prop — surfacing "Under 0.5 at 92%" for him is
-  // mathematically true but useless to a bettor. We require at least a small
-  // amount of production (avg10 >= 0.2) AND that the player has done it at
-  // least once in the sample, otherwise we drop the prop entirely.
-  if (last10.length >= 5) {
-    if (avg10 < 0.2) return null;
-    if (Math.max(...last10) === 0) return null;
-  }
+  // Skip only props where the player has TRULY zero production in the sample
+  // (e.g. a pitcher's "Hits" or a 5-man rotation reliever's "Strikeouts").
+  // Every other prop is built and exposed in the player's detail sheet — the
+  // user wants to see all stat categories for each player. The "is this an
+  // actionable headline pick?" decision is made later in `pickBestProp` using
+  // a balanced-tier filter, NOT by gating prop creation here. Earlier
+  // experiments with 25/75 and 20/80 cutoffs both gutted NBA categories
+  // (only 2-3 stat lines per player) because chooseBalancedLine's discrete
+  // 0.5-step search rarely lands hit rates inside narrow boundary bands.
+  if (last10.length >= 5 && Math.max(...last10) === 0) return null;
 
   // Model line: pick the line whose historical hit rate is closest to 50%
   // (sportsbook-style "split the action"), not the raw rounded mean. This is
   // what removes the structural Under bias that low-volume stats create.
   const line = chooseBalancedLine(last10);
-
-  // If even the best balanced line is one-sided (outside 25%-75% historical
-  // hit rate), this prop has no real edge to surface — it's just "this player
-  // almost never / always does X" dressed up as a confident pick. Skipping
-  // these is what kills the structural Under bias from low-volume stats: a
-  // player averaging 0.2 hits has no actionable Hits prop, just noise.
-  const balancedHitRate = countHits(last10, line) / Math.max(1, last10.length);
-  if (balancedHitRate >= 0.75 || balancedHitRate <= 0.25) return null;
 
   // Pushes (v === line, only possible at integer lines) get half-credit so
   // hitRate doesn't artificially skew toward the Under side.
@@ -582,7 +590,11 @@ function buildPropFromRealData(input: PropInputs): PlayerProp | null {
   const trend: "up" | "down" | "flat" =
     trendVal > sd * 0.25 ? "up" : trendVal < -sd * 0.25 ? "down" : "flat";
 
-  const isOver = lineGap >= 0;
+  // Side selection — must match the side passed to factor builders upstream
+  // (see `chooseSide`). Previously this used `lineGap >= 0` while factor
+  // builders used a different formula, causing factor impacts to flip the
+  // wrong way and distort winProbability.
+  const isOver = chooseSide(values, line);
 
   // Edge score (1-10)
   const gapScore = Math.min(4.5, Math.abs(lineGap) / sd * 3);
@@ -733,7 +745,7 @@ async function processMlbGame(
         .map((g) => extractHittingValue(g.stat, prop));
       // We need the line BEFORE building factors; must match buildPropFromRealData's formula.
       const tentativeLine = chooseBalancedLine(values.slice(-10));
-      const isOverTentative = (mean(values.slice(-5)) - tentativeLine) >= 0;
+      const isOverTentative = chooseSide(values, tentativeLine);
       const opponentFactor = buildMlbOpponentFactor(prop, ctx.opponentAbbr, ctx.opponentMlbId, isOverTentative, teamPitchingStats);
       const weatherFactor = ctx.isHome
         ? buildWeatherFactor("MLB", game.homeTeam.abbreviation, weatherSnap, isOverTentative, prop)
@@ -784,7 +796,7 @@ async function processMlbGame(
       .slice(-10)
       .map((g) => extractPitchingValue(g.stat, prop));
     const tentativeLine = chooseBalancedLine(values.slice(-10));
-    const isOverTentative = (mean(values.slice(-5)) - tentativeLine) >= 0;
+    const isOverTentative = chooseSide(values, tentativeLine);
     // Pitcher's "opponent" defensively for K's: use opposing team's team-level
     // strikeOuts as hitters (more team K's = easier OVER for pitcher K). We have
     // teamPitchingStats keyed by team's pitching staff, not their hitters. As a
@@ -869,7 +881,7 @@ async function processNbaGame(
         .slice(-10)
         .map((g) => extractNbaValue(g, prop));
       const tentativeLine = chooseBalancedLine(values.slice(-10));
-      const isOverTentative = (mean(values.slice(-5)) - tentativeLine) >= 0;
+      const isOverTentative = chooseSide(values, tentativeLine);
       const opponentFactor = buildNbaOpponentFactor(prop, ctx.oppAbbr, ctx.oppTeamId, isOverTentative, paRanks);
       const h2hFactor = buildH2HFactor(h2hValues, tentativeLine, isOverTentative, ctx.oppAbbr);
       const built = buildPropFromRealData({
@@ -900,23 +912,34 @@ async function processNbaGame(
 }
 
 // Choose the most ACTIONABLE prop for a player rather than the highest raw
-// winProb. A 95%-confident "Stolen Bases under 0.5" on a player who steals once
-// a month is mathematically true but useless. Real "edge" comes from props
-// with meaningful volume where recent form differs from the line. We tier the
-// candidates by edgeScore (model's gap-vs-volatility signal), and within each
-// tier we prefer higher winProb. This naturally surfaces a mix of Over and
-// Under best picks because real games produce both.
+// winProb. A 95%-confident "Stolen Bases under 0.5" on a player who steals
+// once a month is mathematically true but useless. Real "edge" comes from
+// props where the historical hit rate is near 50% (the line is a real coin
+// flip) AND recent form has shifted to one side. We use a tiered filter:
+//   1. Balanced + meaningful volume — the gold standard
+//   2. Balanced (any volume)
+//   3. Meaningful volume (any balance)
+//   4. Anything left
+// Within each tier we pick the highest winProbability. The "balanced" tier
+// preference is what kills the Board's headline-pick Under bias: every
+// player has SOME props with hitRate near 50%, and those are what should
+// show on the card, not the extreme low-volume Under-by-default props.
 function pickBestProp(props: PlayerProp[]): PlayerProp {
-  // Tier A: meaningful volume (line >= 1) AND clear edge (edgeScore >= 6)
-  const tierA = props.filter((p) => p.line >= 1 && p.edgeScore >= 6);
-  if (tierA.length) return tierA.reduce((b, p) => (p.winProbability > b.winProbability ? p : b));
+  const isBalanced = (p: PlayerProp) => p.hitRate10 >= 0.3 && p.hitRate10 <= 0.7;
+  const hasVolume = (p: PlayerProp) => p.line >= 1;
+  const best = (arr: PlayerProp[]) =>
+    arr.reduce((b, p) => (p.winProbability > b.winProbability ? p : b));
 
-  // Tier B: meaningful volume (line >= 1), any edge — still real props
-  const tierB = props.filter((p) => p.line >= 1);
-  if (tierB.length) return tierB.reduce((b, p) => (p.winProbability > b.winProbability ? p : b));
+  const tier1 = props.filter((p) => isBalanced(p) && hasVolume(p));
+  if (tier1.length) return best(tier1);
 
-  // Tier C: fall back to whatever exists (low-volume props)
-  return props.reduce((b, p) => (p.winProbability > b.winProbability ? p : b));
+  const tier2 = props.filter(isBalanced);
+  if (tier2.length) return best(tier2);
+
+  const tier3 = props.filter(hasVolume);
+  if (tier3.length) return best(tier3);
+
+  return best(props);
 }
 
 // ── Public API ─────────────────────────────────────────────────────────────
