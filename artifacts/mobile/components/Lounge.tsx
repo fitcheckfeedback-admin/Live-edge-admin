@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useToast } from "@/contexts/ToastContext";
 import { useColors } from "@/hooks/useColors";
+import { API_BASE_URL } from "@/lib/apiBase";
 import { colorForName, initials, relTime } from "@/lib/format";
 
 interface ChatMessage {
@@ -32,7 +33,10 @@ const NAME_MIN = 2;
 const NAME_MAX = 20;
 const CONTENT_MAX = 500;
 
-const BASE = `https://${process.env.EXPO_PUBLIC_DOMAIN}`;
+// Lounge uses raw fetch (chat is not in the OpenAPI spec). It MUST go through
+// the same validated base URL as the generated API client. If API_BASE_URL is
+// null, the root layout already shows ConfigErrorScreen and Lounge never mounts.
+const BASE = API_BASE_URL ?? "";
 
 async function fetchInitial(): Promise<ChatMessage[]> {
   const r = await fetch(`${BASE}/api/chat/messages?limit=100`, {
