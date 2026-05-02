@@ -24,9 +24,12 @@ A sports betting research dashboard with:
 - Real-time game data fetched directly from ESPN public APIs (scoreboard + rosters), season-aware (no NFL during off-season)
 - Player props algorithmically generated for actual rostered players using a curated star list (`lib/starPlayers.ts`) + line-bias model — see Honesty section below
 - Edge scoring (1-10 scale) drives Strong Play / Lean / Avoid / Trap Line classification
-- **Win Probability (%):** primary user-facing metric — model's belief that the recommended side hits, anchored on `hitRate10`, dampened by consistency, trend-nudged ±3, clamped 30–88
-- **My Picks bet slip:** client-side only, persisted in `localStorage` (key `live-edge-bet-slip-v1`) via `BetSlipProvider` in `src/lib/betSlip.tsx`. Tap any pick card in Best Picks to add/remove
-- PrizePicks-style Best Picks UI: sport pills → game grouping (by `gameId`, doubleheader-safe) → cards sorted by win probability desc, with More/Less side pills
+- **Win Probability (%):** primary user-facing metric — model's belief that the recommended side hits, anchored on `hitRate10`, dampened by consistency, trend-nudged ±3, then nudged by factor impacts (weather + opponent + H2H) at half weight, clamped 28–92
+- **PrizePicks-style player cards:** the Board now lists one card per player per game (not one card per prop). Each MLB batter generates all 11 stat categories (Home Runs, Total Bases, Hits+Runs+RBIs, Hits, Runs, RBIs, Walks, Stolen Bases, Hitter Strikeouts, Singles, Doubles); MLB pitchers get Pitcher Strikeouts; NBA players get position-specific templates. The player's highest-winProb prop is marked `bestPick=true` and shown prominently with a gold star.
+- **Player Detail Sheet:** clicking a player card opens a bottom sheet (`PlayerDetailSheet.tsx`) with hero header + game card + accordion `CategoryRow` per prop. Each row expands to show a `Last5Chart` bar chart, factor chips (opponent rank, H2H avg, weather), reasoning, and side-aware Over/Under buttons.
+- **Per-prop factors** (`PropFactors`): every prop carries `weather` (null for non-MLB and domed parks: TOR, TB, ARI, MIA, MIL, HOU, TEX, SEA), `opponent` (rank 1-30 → Elite/Strong/Average/Weak/Burnable, ±7pp impact), and `h2h` (3-5 synthesized prior meetings, ±8pp impact). Each factor's `impact` is a percentage-point nudge to the over win probability.
+- **My Picks bet slip:** client-side only, persisted in `localStorage` (key `live-edge-bet-slip-v1`) via `BetSlipProvider` in `src/lib/betSlip.tsx`. Each `SlipPick` stores `side` ("Over"|"Under"). The Detail Sheet's pick buttons are side-aware: tapping the same side removes; tapping the opposite side replaces (count stays at 1, not 2).
+- Live Edge board filters props to `bestPick && live` to avoid 11x duplication when a single player has many open categories
 - Live in-game projections (only populates when games are actually live)
 - Alerts auto-generated from Strong Plays + Trap Lines
 - Results tracker with CSV export

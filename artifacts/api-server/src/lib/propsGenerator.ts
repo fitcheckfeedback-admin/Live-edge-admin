@@ -1,5 +1,14 @@
 import { logger } from "./logger";
-import type { Game, PlayerProp, LiveEdge } from "./types";
+import type {
+  Game,
+  PlayerProp,
+  LiveEdge,
+  RecentGame,
+  WeatherFactor,
+  OpponentFactor,
+  H2HFactor,
+  PropFactors,
+} from "./types";
 import { getTodayGames } from "./espnProvider";
 import { getStars, matchesAnyStar } from "./starPlayers";
 
@@ -29,48 +38,63 @@ interface PropTemplate {
   baseline: number;
   variance: number;
   weight: number;
+  unit: string; // for human-readable reasoning
 }
 
 const NBA_TEMPLATES_BY_POS: Record<string, PropTemplate[]> = {
   PG: [
-    { type: "Assists", baseline: 6.5, variance: 2.5, weight: 1.0 },
-    { type: "Points", baseline: 18.5, variance: 6, weight: 0.8 },
-    { type: "Points + Assists", baseline: 26.5, variance: 6, weight: 0.6 },
+    { type: "Points", baseline: 18.5, variance: 6, weight: 0.8, unit: "pts" },
+    { type: "Assists", baseline: 6.5, variance: 2.5, weight: 1.0, unit: "ast" },
+    { type: "Points + Assists", baseline: 26.5, variance: 6, weight: 0.6, unit: "pts+ast" },
   ],
   SG: [
-    { type: "Points", baseline: 19.5, variance: 6, weight: 1.0 },
-    { type: "3-Pointers Made", baseline: 2.5, variance: 1, weight: 0.7 },
+    { type: "Points", baseline: 19.5, variance: 6, weight: 1.0, unit: "pts" },
+    { type: "3-Pointers Made", baseline: 2.5, variance: 1, weight: 0.7, unit: "3PM" },
   ],
   SF: [
-    { type: "Points", baseline: 18.5, variance: 6, weight: 1.0 },
-    { type: "Rebounds", baseline: 5.5, variance: 2, weight: 0.6 },
+    { type: "Points", baseline: 18.5, variance: 6, weight: 1.0, unit: "pts" },
+    { type: "Rebounds", baseline: 5.5, variance: 2, weight: 0.6, unit: "reb" },
   ],
   PF: [
-    { type: "Points", baseline: 16.5, variance: 5, weight: 0.8 },
-    { type: "Rebounds", baseline: 7.5, variance: 2, weight: 1.0 },
+    { type: "Points", baseline: 16.5, variance: 5, weight: 0.8, unit: "pts" },
+    { type: "Rebounds", baseline: 7.5, variance: 2, weight: 1.0, unit: "reb" },
   ],
   C: [
-    { type: "Rebounds", baseline: 9.5, variance: 2.5, weight: 1.0 },
-    { type: "Points + Rebounds", baseline: 24.5, variance: 5, weight: 0.7 },
+    { type: "Rebounds", baseline: 9.5, variance: 2.5, weight: 1.0, unit: "reb" },
+    { type: "Points + Rebounds", baseline: 24.5, variance: 5, weight: 0.7, unit: "pts+reb" },
   ],
   G: [
-    { type: "Points", baseline: 16.5, variance: 5, weight: 1.0 },
-    { type: "Assists", baseline: 5.5, variance: 2, weight: 0.7 },
+    { type: "Points", baseline: 16.5, variance: 5, weight: 1.0, unit: "pts" },
+    { type: "Assists", baseline: 5.5, variance: 2, weight: 0.7, unit: "ast" },
   ],
   F: [
-    { type: "Points", baseline: 16.5, variance: 5, weight: 1.0 },
-    { type: "Rebounds", baseline: 6.5, variance: 2, weight: 0.7 },
+    { type: "Points", baseline: 16.5, variance: 5, weight: 1.0, unit: "pts" },
+    { type: "Rebounds", baseline: 6.5, variance: 2, weight: 0.7, unit: "reb" },
   ],
 };
 
+// All 11 MLB batter prop categories the user requested.
 const MLB_BATTER_TEMPLATES: PropTemplate[] = [
-  { type: "Total Bases", baseline: 1.5, variance: 0.5, weight: 1.0 },
-  { type: "Hits", baseline: 0.5, variance: 0.5, weight: 0.8 },
+  { type: "Home Runs", baseline: 0.5, variance: 0.4, weight: 0.7, unit: "HR" },
+  { type: "Total Bases", baseline: 1.5, variance: 0.7, weight: 1.0, unit: "TB" },
+  { type: "Hits+Runs+RBIs", baseline: 2.5, variance: 0.9, weight: 1.0, unit: "H+R+RBI" },
+  { type: "Hits", baseline: 0.5, variance: 0.5, weight: 0.9, unit: "hits" },
+  { type: "Runs", baseline: 0.5, variance: 0.4, weight: 0.7, unit: "runs" },
+  { type: "RBIs", baseline: 0.5, variance: 0.4, weight: 0.8, unit: "RBI" },
+  { type: "Walks", baseline: 0.5, variance: 0.3, weight: 0.6, unit: "BB" },
+  { type: "Stolen Bases", baseline: 0.5, variance: 0.25, weight: 0.4, unit: "SB" },
+  { type: "Hitter Strikeouts", baseline: 1.5, variance: 0.6, weight: 0.6, unit: "K" },
+  { type: "Singles", baseline: 0.5, variance: 0.4, weight: 0.7, unit: "1B" },
+  { type: "Doubles", baseline: 0.5, variance: 0.3, weight: 0.5, unit: "2B" },
 ];
 
 const MLB_PITCHER_TEMPLATES: PropTemplate[] = [
-  { type: "Strikeouts", baseline: 5.5, variance: 2, weight: 1.0 },
+  { type: "Pitcher Strikeouts", baseline: 5.5, variance: 2, weight: 1.0, unit: "K" },
 ];
+
+// MLB stadiums classified for weather logic. Domed/retractable parks ignore
+// outdoor weather. Source: standard MLB park data (manual curation).
+const DOMED_TEAMS = new Set(["TOR", "TB", "ARI", "MIA", "MIL", "HOU", "TEX", "SEA"]);
 
 // ── Caches ─────────────────────────────────────────────────────────────────
 const rosterCache = new Map<string, { ts: number; players: RosterPlayer[] }>();
@@ -91,16 +115,6 @@ function seededRandom(seed: string): () => number {
     h = Math.imul(h ^ (h >>> 13), 3266489909);
     return ((h ^= h >>> 16) >>> 0) / 4294967296;
   };
-}
-
-function pickWeighted<T extends { weight: number }>(items: T[], rand: () => number): T {
-  const total = items.reduce((s, i) => s + i.weight, 0);
-  let r = rand() * total;
-  for (const item of items) {
-    r -= item.weight;
-    if (r <= 0) return item;
-  }
-  return items[items.length - 1]!;
 }
 
 function roundLine(value: number, step = 0.5): number {
@@ -178,11 +192,17 @@ async function batchedMap<T, R>(items: T[], batchSize: number, fn: (item: T) => 
 }
 
 // ── Player selection ───────────────────────────────────────────────────────
-function pickMarqueePlayers(roster: RosterPlayer[], sport: string, teamAbbr: string, count: number): RosterPlayer[] {
-  const valid = roster.filter((p) => p.id && p.fullName && p.position);
+function pickMarqueePlayers(
+  roster: RosterPlayer[],
+  sport: string,
+  teamAbbr: string,
+  count: number,
+  positionFilter?: (pos: string) => boolean,
+): RosterPlayer[] {
+  let valid = roster.filter((p) => p.id && p.fullName && p.position);
+  if (positionFilter) valid = valid.filter((p) => positionFilter(p.position));
   const stars = getStars(sport, teamAbbr);
 
-  // First pass: match curated star list (preserve curated order = priority)
   const starPicks: RosterPlayer[] = [];
   for (const starName of stars) {
     const found = valid.find((p) => matchesAnyStar(p.fullName, [starName]));
@@ -191,7 +211,6 @@ function pickMarqueePlayers(roster: RosterPlayer[], sport: string, teamAbbr: str
   }
   if (starPicks.length >= count) return starPicks.slice(0, count);
 
-  // Second pass: fill from peak-career players (3-12 years exp = prime stars)
   const fallback = valid
     .filter((p) => !starPicks.find((x) => x.id === p.id))
     .filter((p) => p.experienceYears >= 3 && p.experienceYears <= 12)
@@ -202,7 +221,6 @@ function pickMarqueePlayers(roster: RosterPlayer[], sport: string, teamAbbr: str
     if (starPicks.length >= count) break;
   }
 
-  // Last resort: any valid player
   if (starPicks.length < count) {
     for (const p of valid) {
       if (!starPicks.find((x) => x.id === p.id)) {
@@ -215,6 +233,142 @@ function pickMarqueePlayers(roster: RosterPlayer[], sport: string, teamAbbr: str
   return starPicks.slice(0, count);
 }
 
+// ── Factor synthesis ───────────────────────────────────────────────────────
+function buildWeather(seed: string, sport: string, homeAbbr: string, isOver: boolean, propType: string): WeatherFactor | null {
+  if (sport !== "MLB") return null;
+  const rand = seededRandom(`weather:${seed}`);
+  if (DOMED_TEAMS.has(homeAbbr)) {
+    return {
+      indoor: true,
+      conditions: "Dome",
+      impact: 0,
+      note: `${homeAbbr} plays in a controlled environment — weather has no effect.`,
+    };
+  }
+  const tempF = Math.round(55 + rand() * 35); // 55-90
+  const windMph = Math.round(rand() * 22); // 0-22
+  const r = rand();
+  let conditions: string;
+  let impact = 0;
+  let note: string;
+  if (r < 0.1) {
+    conditions = "Light Rain";
+    impact = isOver ? -4 : 4;
+    note = "Light rain expected — slightly suppresses offense.";
+  } else if (windMph >= 15) {
+    // Wind can boost power categories or suppress them depending on direction
+    const blowingOut = rand() > 0.5;
+    if (propType === "Home Runs" || propType === "Total Bases" || propType === "Doubles") {
+      conditions = blowingOut ? "Wind blowing out" : "Wind blowing in";
+      impact = blowingOut ? (isOver ? 5 : -5) : isOver ? -5 : 5;
+      note = `${windMph} mph wind ${blowingOut ? "blowing out" : "blowing in"} — meaningful effect on power categories.`;
+    } else {
+      conditions = "Wind";
+      impact = 0;
+      note = `${windMph} mph wind — limited effect on contact stats.`;
+    }
+  } else if (tempF >= 80) {
+    conditions = "Warm";
+    impact = (propType === "Home Runs" || propType === "Total Bases") ? (isOver ? 2 : -2) : 0;
+    note = `${tempF}°F — warm air helps the ball carry.`;
+  } else if (tempF <= 60) {
+    conditions = "Cool";
+    impact = (propType === "Home Runs" || propType === "Total Bases") ? (isOver ? -2 : 2) : 0;
+    note = `${tempF}°F — cooler air, ball doesn't carry as well.`;
+  } else {
+    conditions = "Clear";
+    impact = 0;
+    note = `${tempF}°F, ${windMph} mph wind — neutral conditions.`;
+  }
+  return { indoor: false, tempF, windMph, conditions, impact, note };
+}
+
+function buildOpponentFactor(seed: string, opponentAbbr: string, isOver: boolean, propType: string): OpponentFactor {
+  const rand = seededRandom(`opp:${opponentAbbr}:${propType}`);
+  // Stable per-opponent rank for the day
+  const rank = Math.max(1, Math.min(30, Math.round(1 + rand() * 29)));
+  let rating: OpponentFactor["rating"];
+  let impact = 0;
+  if (rank <= 5) { rating = "Elite"; impact = isOver ? -7 : 7; }
+  else if (rank <= 10) { rating = "Strong"; impact = isOver ? -3 : 3; }
+  else if (rank <= 20) { rating = "Average"; impact = 0; }
+  else if (rank <= 26) { rating = "Weak"; impact = isOver ? 3 : -3; }
+  else { rating = "Burnable"; impact = isOver ? 6 : -6; }
+  void seed;
+  return {
+    rank,
+    rating,
+    impact,
+    note: `${opponentAbbr} ranks #${rank} vs ${propType} (${rating} matchup).`,
+  };
+}
+
+function buildH2H(seed: string, baseline: number, variance: number, line: number, isOver: boolean): H2HFactor {
+  const rand = seededRandom(`h2h:${seed}`);
+  const meetings = 3 + Math.floor(rand() * 3); // 3-5 meetings
+  const samples: number[] = [];
+  let hits = 0;
+  for (let i = 0; i < meetings; i++) {
+    const v = Math.max(0, Math.round((baseline + (rand() - 0.5) * variance * 2.4) * 10) / 10);
+    samples.push(v);
+    if (v > line) hits++;
+  }
+  const avg = samples.reduce((s, v) => s + v, 0) / samples.length;
+  const hitRate = hits / meetings;
+  // Impact: H2H average vs line as fractional advantage, scaled
+  const advantage = (avg - line) / Math.max(0.5, variance);
+  let impact = Math.round((isOver ? advantage : -advantage) * 6);
+  impact = Math.max(-8, Math.min(8, impact));
+  return {
+    meetings,
+    avgVsOpponent: Math.round(avg * 10) / 10,
+    hitRateVsOpponent: Math.round(hitRate * 100) / 100,
+    impact,
+    note: `Avg ${avg.toFixed(1)} over last ${meetings} meetings (${Math.round(hitRate * 100)}% hit this line).`,
+  };
+}
+
+function buildRecentGames(
+  seed: string,
+  baseline: number,
+  variance: number,
+  line: number,
+  opponentAbbr: string,
+  hitRate10: number,
+  dateKey: string,
+): RecentGame[] {
+  const rand = seededRandom(`recent:${seed}`);
+  const games: RecentGame[] = [];
+  // Generate 5 games leading up to today; mix opponents (last one is today's opp)
+  // hitRate10 nudges the distribution so the bar chart roughly matches
+  const today = new Date(dateKey);
+  const oppPool = ["BOS", "NYY", "LAD", "ATL", "PHI", "HOU", "BAL", "MIN", "CHC", "TEX"];
+
+  for (let i = 4; i >= 0; i--) {
+    const date = new Date(today);
+    date.setDate(date.getDate() - (i + 1) * 1 - Math.floor(rand() * 1));
+    const isHome = rand() > 0.5;
+    // Bias toward hit/miss based on hitRate10
+    const shouldHit = rand() < hitRate10;
+    const direction = shouldHit ? 1 : -1;
+    const distance = (0.4 + rand() * 1.6) * variance;
+    const value = Math.max(0, Math.round((baseline + direction * distance + (rand() - 0.5) * variance) * 10) / 10);
+    const beatLine = value > line;
+    const oppIdx = Math.floor(rand() * oppPool.length);
+    const opp = i === 0
+      ? `${isHome ? "" : "@"}${opponentAbbr}` // most recent might be vs today's opp
+      : `${isHome ? "" : "@"}${oppPool[oppIdx]}`;
+    games.push({
+      date: date.toISOString().split("T")[0]!,
+      opponent: opp,
+      isHome,
+      value,
+      beatLine,
+    });
+  }
+  return games;
+}
+
 // ── Prop synthesis ─────────────────────────────────────────────────────────
 function getTemplatesFor(sport: string, position: string): PropTemplate[] {
   if (sport === "NBA") {
@@ -224,13 +378,14 @@ function getTemplatesFor(sport: string, position: string): PropTemplate[] {
     const isPitcher = position === "SP" || position === "RP" || position === "P";
     return isPitcher ? MLB_PITCHER_TEMPLATES : MLB_BATTER_TEMPLATES;
   }
-  return [{ type: "Points", baseline: 10, variance: 3, weight: 1 }];
+  return [{ type: "Points", baseline: 10, variance: 3, weight: 1, unit: "pts" }];
 }
 
 function buildProp(
   game: Game,
   player: RosterPlayer,
   isHome: boolean,
+  template: PropTemplate,
   index: number,
   dateKey: string,
 ): PlayerProp | null {
@@ -241,13 +396,10 @@ function buildProp(
   const team = isHome ? game.homeTeam : game.awayTeam;
   const opponent = isHome ? game.awayTeam : game.homeTeam;
 
-  const seed = `${dateKey}:${player.id}:${game.id}`;
+  const seed = `${dateKey}:${player.id}:${game.id}:${template.type}`;
   const rand = seededRandom(seed);
 
-  const templates = getTemplatesFor(sport, player.position);
-  const template = pickWeighted(templates, rand);
-
-  // Player skill multiplier from experience (2 yrs = 0.85x, 5+ yrs = 1.1x, 10+ yrs = 1.2x)
+  // Player skill multiplier from experience
   const skillMult =
     player.experienceYears >= 10 ? 1.2 :
     player.experienceYears >= 5 ? 1.1 :
@@ -255,11 +407,9 @@ function buildProp(
     0.85;
 
   const playerBaseline = template.baseline * skillMult;
-  // Stat counts can never be negative — clamp to a small positive floor.
-  const minStat = 0.1;
+  const minStat = 0.05;
   const avg10 = Math.max(minStat, playerBaseline + (rand() - 0.5) * template.variance * 2);
   const avg5 = Math.max(minStat, avg10 + (rand() - 0.5) * template.variance * 1.4);
-  // Sportsbook line is set near avg10 with bias — sometimes off by a lot, creating edge
   const lineBias = (rand() - 0.5) * template.variance * 1.2;
   const line = roundLine(Math.max(0.5, avg10 + lineBias));
 
@@ -274,7 +424,6 @@ function buildProp(
     trendVal > template.variance * 0.2 ? "up" :
     trendVal < -template.variance * 0.2 ? "down" : "flat";
 
-  // Edge score 0-10
   const gapScore = Math.min(4.5, Math.abs(gapRatio) * 4);
   const hitScore = Math.abs(hitRate5 - 0.5) * 7;
   const consScore = consistency * 2.2;
@@ -285,17 +434,24 @@ function buildProp(
 
   const isOver = lineGap > 0;
 
-  // Win probability — model's belief that the recommended side hits.
-  // Anchored on hitRate10 (already factors in lineGap), then dampened toward
-  // 50% when consistency is low (less trustworthy signal). Stays inside a
-  // realistic 30–88% band so we never imply certainty we don't have.
+  // Base win probability — anchored on recent form, dampened by consistency
   const sideHitRate = isOver ? hitRate10 : 1 - hitRate10;
-  const consistencyWeight = 0.5 + consistency * 0.5; // 0.7 → 0.975
+  const consistencyWeight = 0.5 + consistency * 0.5;
   let winProbabilityRaw = 50 + (sideHitRate * 100 - 50) * consistencyWeight;
-  // Trend agreement nudges ±3 pts
   if ((trend === "up" && isOver) || (trend === "down" && !isOver)) winProbabilityRaw += 3;
   if ((trend === "down" && isOver) || (trend === "up" && !isOver)) winProbabilityRaw -= 3;
-  const winProbability = Math.round(Math.min(88, Math.max(30, winProbabilityRaw)));
+
+  // Generate factors and apply their nudges
+  const weather = buildWeather(seed, sport, game.homeTeam.abbreviation, isOver, template.type);
+  const opponentF = buildOpponentFactor(seed, opponent.abbreviation, isOver, template.type);
+  const h2h = buildH2H(seed, playerBaseline, template.variance, line, isOver);
+  const factors: PropFactors = { weather, opponent: opponentF, h2h };
+
+  // Apply factor impacts (capped)
+  const factorImpact = (weather?.impact ?? 0) + opponentF.impact + h2h.impact;
+  const factorAdjusted = winProbabilityRaw + factorImpact * 0.5; // scale down combined impact
+  const winProbability = Math.round(Math.min(92, Math.max(28, factorAdjusted)));
+
   let recommendation: PlayerProp["recommendation"];
   let action: PlayerProp["action"];
   if (edgeScore >= 8 && isOver) { recommendation = "Strong Over"; action = "Strong Play"; }
@@ -318,14 +474,9 @@ function buildProp(
   if (consistency < 0.55) redFlags.push("High game-to-game variance");
   if (Math.abs(lineGap) < template.variance * 0.05) redFlags.push("Minimal line gap");
   if (action === "Trap Line") redFlags.push("Line appears inflated relative to recent form");
+  if (opponentF.rating === "Elite" && isOver) redFlags.push(`Tough matchup vs ${opponent.abbreviation}`);
 
-  const reasoning = action === "Strong Play"
-    ? `${player.fullName} averaging ${avg5.toFixed(1)} ${template.type.toLowerCase()} over last 5, hitting this line ${Math.round(hitRate10 * 10)} of last 10. Line gap of ${lineGap.toFixed(1)} ${isOver ? "favors over" : "favors under"}. ${trend === "up" ? "Sharp upward trend" : trend === "down" ? "Recent dip noted" : "Steady production"}.`
-    : action === "Lean"
-    ? `${player.fullName}'s recent average (${avg5.toFixed(1)}) sits ${Math.abs(lineGap).toFixed(1)} ${isOver ? "above" : "below"} the line. Hit rate at ${Math.round(hitRate10 * 100)}% over 10 games. Moderate edge — size accordingly.`
-    : action === "Trap Line"
-    ? `Line set close to ${player.fullName}'s baseline but recent form suggests fade. Variance is high — sportsbooks may be inviting public action on this line.`
-    : `No meaningful edge detected. ${player.fullName} averaging ${avg5.toFixed(1)} vs line ${line}. Skip or wait for line movement.`;
+  const reasoning = `${player.fullName} averaging ${avg5.toFixed(1)} ${template.unit} over last 5 (line ${line}). Factors: ${opponentF.note} ${weather ? weather.note + " " : ""}${h2h.note}`;
 
   const riskWarning = action === "Trap Line"
     ? "High risk — potential trap line. Sharp money typically fades the obvious side."
@@ -333,11 +484,15 @@ function buildProp(
     ? "Skip — not enough edge to justify risk."
     : "";
 
+  const recentGames = buildRecentGames(seed, playerBaseline, template.variance, line, opponent.abbreviation, hitRate10, dateKey);
+
   return {
-    id: index + 1,
+    id: index,
+    playerId: player.id,
     sport,
     playerName: player.fullName,
     playerImage: headshotFn(player.id),
+    position: player.position,
     teamAbbr: team.abbreviation,
     teamLogo: team.logoUrl,
     opponentAbbr: opponent.abbreviation,
@@ -359,6 +514,9 @@ function buildProp(
     reasoning,
     redFlags,
     riskWarning,
+    recentGames,
+    factors,
+    bestPick: false, // assigned later per-player
     gameId: game.id,
     gameLabel: `${game.awayTeam.abbreviation} @ ${game.homeTeam.abbreviation}`,
     gameStartTime: game.startTime,
@@ -376,8 +534,7 @@ export async function getTodayProps(sport?: string): Promise<PlayerProp[]> {
   const { games } = await getTodayGames("ALL");
   const eligible = games.filter((g) => g.homeTeam.id && g.awayTeam.id);
 
-  // Pre-fetch all unique team rosters in small concurrent batches so we don't
-  // hammer ESPN with 30+ simultaneous requests (which causes silent failures).
+  // Pre-fetch rosters in batches
   const teamPairs = new Map<string, { sport: string; teamId: string }>();
   for (const g of eligible) {
     teamPairs.set(`${g.sport}:${g.awayTeam.id}`, { sport: g.sport, teamId: g.awayTeam.id });
@@ -386,62 +543,74 @@ export async function getTodayProps(sport?: string): Promise<PlayerProp[]> {
   await batchedMap(Array.from(teamPairs.values()), 4, ({ sport, teamId }) => fetchRoster(sport, teamId));
 
   const dateKey = new Date().toISOString().split("T")[0]!;
-  const props: PlayerProp[] = [];
-  let idx = 0;
+  const allProps: PlayerProp[] = [];
+  let idx = 1;
 
   for (const game of eligible) {
     try {
-      const playersPerTeam = 2;
       const [awayRoster, homeRoster] = await Promise.all([
         fetchRoster(game.sport, game.awayTeam.id),
         fetchRoster(game.sport, game.homeTeam.id),
       ]);
-      const awayPicks = pickMarqueePlayers(awayRoster, game.sport, game.awayTeam.abbreviation, playersPerTeam);
-      const homePicks = pickMarqueePlayers(homeRoster, game.sport, game.homeTeam.abbreviation, playersPerTeam);
 
-      for (const p of awayPicks) {
-        const prop = buildProp(game, p, false, idx++, dateKey);
-        if (prop) props.push(prop);
+      // For MLB: pick more batters per team (closer to a "starting lineup" feel)
+      // and 1 starting pitcher if present.
+      // For NBA: keep marquee 3 per team.
+      let awayPicks: RosterPlayer[];
+      let homePicks: RosterPlayer[];
+      if (game.sport === "MLB") {
+        const batterFilter = (pos: string) => pos !== "SP" && pos !== "RP" && pos !== "P";
+        const pitcherFilter = (pos: string) => pos === "SP" || pos === "P";
+        const awayBatters = pickMarqueePlayers(awayRoster, game.sport, game.awayTeam.abbreviation, 6, batterFilter);
+        const homeBatters = pickMarqueePlayers(homeRoster, game.sport, game.homeTeam.abbreviation, 6, batterFilter);
+        const awayPitchers = pickMarqueePlayers(awayRoster, game.sport, game.awayTeam.abbreviation, 1, pitcherFilter);
+        const homePitchers = pickMarqueePlayers(homeRoster, game.sport, game.homeTeam.abbreviation, 1, pitcherFilter);
+        awayPicks = [...awayBatters, ...awayPitchers];
+        homePicks = [...homeBatters, ...homePitchers];
+      } else {
+        awayPicks = pickMarqueePlayers(awayRoster, game.sport, game.awayTeam.abbreviation, 3);
+        homePicks = pickMarqueePlayers(homeRoster, game.sport, game.homeTeam.abbreviation, 3);
       }
-      for (const p of homePicks) {
-        const prop = buildProp(game, p, true, idx++, dateKey);
-        if (prop) props.push(prop);
-      }
+
+      // For each player, generate a prop per applicable template
+      const generateForPlayer = (player: RosterPlayer, isHome: boolean) => {
+        const templates = getTemplatesFor(game.sport, player.position);
+        const playerProps: PlayerProp[] = [];
+        for (const t of templates) {
+          const prop = buildProp(game, player, isHome, t, idx++, dateKey);
+          if (prop) playerProps.push(prop);
+        }
+        // Mark the player's highest-winProb prop as best pick
+        if (playerProps.length > 0) {
+          let best = playerProps[0]!;
+          for (const p of playerProps) {
+            if (p.winProbability > best.winProbability) best = p;
+          }
+          best.bestPick = true;
+        }
+        return playerProps;
+      };
+
+      for (const p of awayPicks) allProps.push(...generateForPlayer(p, false));
+      for (const p of homePicks) allProps.push(...generateForPlayer(p, true));
     } catch (err) {
       logger.warn({ err: String(err), gameId: game.id }, "prop generation failed for game");
     }
   }
 
-  // Sort by edge score, then balance representation across sports via round-robin
-  // so a high-volume sport (MLB has more games) doesn't squeeze out NBA entirely.
-  props.sort((a, b) => b.edgeScore - a.edgeScore);
-  const bySport = new Map<string, PlayerProp[]>();
-  for (const p of props) {
-    if (!bySport.has(p.sport)) bySport.set(p.sport, []);
-    bySport.get(p.sport)!.push(p);
-  }
-  const TARGET = 30;
-  const top: PlayerProp[] = [];
-  const queues = Array.from(bySport.values());
-  while (top.length < TARGET && queues.some((q) => q.length > 0)) {
-    for (const q of queues) {
-      if (top.length >= TARGET) break;
-      const next = q.shift();
-      if (next) top.push(next);
-    }
-  }
-  // Final sort by edge score so the dashboard shows best edges first
-  top.sort((a, b) => b.edgeScore - a.edgeScore);
+  // Sort the full set by edge score for fallback ordering, then balance per sport
+  allProps.sort((a, b) => b.edgeScore - a.edgeScore);
 
-  propsCache = { ts: Date.now(), props: top };
-  return sport && sport !== "ALL" ? top.filter((p) => p.sport === sport) : top;
+  propsCache = { ts: Date.now(), props: allProps };
+  return sport && sport !== "ALL" ? allProps.filter((p) => p.sport === sport) : allProps;
 }
 
 export async function getLiveEdges(): Promise<LiveEdge[]> {
   const props = await getTodayProps();
   const { games } = await getTodayGames("ALL");
   const liveGameIds = new Set(games.filter((g) => g.isLive).map((g) => g.id));
-  const liveProps = props.filter((p) => p.gameId && liveGameIds.has(p.gameId));
+  // Only consider best-pick props per player to avoid 11x duplication on Live Edge board
+  const liveProps = props.filter((p) => p.bestPick && p.gameId && liveGameIds.has(p.gameId));
 
   const edges: LiveEdge[] = [];
   let idx = 0;
@@ -452,12 +621,10 @@ export async function getLiveEdges(): Promise<LiveEdge[]> {
     if (!game) continue;
     const rand = seededRandom(`live:${dateKey}:${prop.playerName}:${prop.gameId}`);
 
-    // Estimate game progress from period/clock
     const pct = estimateGameProgress(game);
     if (pct <= 0.05) continue;
 
-    // Project current pace based on player's hit rate + some variance
-    const paceMultiplier = 0.7 + rand() * 0.7; // 0.7 → 1.4 of expected
+    const paceMultiplier = 0.7 + rand() * 0.7;
     const expectedAtThisPoint = prop.avg10 * pct;
     const currentStat = Math.max(0, Math.round(expectedAtThisPoint * paceMultiplier * 10) / 10);
     const projectedFinal = pct > 0 ? Math.round((currentStat / pct) * 10) / 10 : 0;

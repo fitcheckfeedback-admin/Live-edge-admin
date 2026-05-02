@@ -9,12 +9,16 @@ import type { PlayerPropAction } from "./playerPropAction";
 import type { PlayerPropConfidence } from "./playerPropConfidence";
 import type { PlayerPropRecommendation } from "./playerPropRecommendation";
 import type { PlayerPropTrend } from "./playerPropTrend";
+import type { PropFactors } from "./propFactors";
+import type { RecentGame } from "./recentGame";
 
 export interface PlayerProp {
   id: number;
+  playerId: string;
   sport: string;
   playerName: string;
   playerImage?: string;
+  position?: string;
   teamAbbr: string;
   teamLogo?: string;
   opponentAbbr: string;
@@ -37,6 +41,10 @@ export interface PlayerProp {
   reasoning?: string;
   redFlags?: string[];
   riskWarning?: string;
+  recentGames: RecentGame[];
+  factors: PropFactors;
+  /** True if this is the player's highest win-probability pick of the day. */
+  bestPick: boolean;
   gameId?: string;
   /** Human-readable matchup label (e.g. "LAL @ DEN" or "NYY @ BOS") */
   gameLabel?: string;

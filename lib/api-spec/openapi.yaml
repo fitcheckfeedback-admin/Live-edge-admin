@@ -361,16 +361,94 @@ components:
           type: string
       required: [id, name, abbreviation]
 
+    RecentGame:
+      type: object
+      properties:
+        date:
+          type: string
+        opponent:
+          type: string
+        isHome:
+          type: boolean
+        value:
+          type: number
+        beatLine:
+          type: boolean
+      required: [date, opponent, isHome, value, beatLine]
+
+    WeatherFactor:
+      type: object
+      properties:
+        indoor:
+          type: boolean
+        tempF:
+          type: number
+        windMph:
+          type: number
+        conditions:
+          type: string
+        impact:
+          type: number
+        note:
+          type: string
+      required: [indoor, impact, note]
+
+    OpponentFactor:
+      type: object
+      properties:
+        rank:
+          type: number
+        rating:
+          type: string
+          enum: [Elite, Strong, Average, Weak, Burnable]
+        impact:
+          type: number
+        note:
+          type: string
+      required: [rank, rating, impact, note]
+
+    H2HFactor:
+      type: object
+      properties:
+        meetings:
+          type: number
+        avgVsOpponent:
+          type: number
+        hitRateVsOpponent:
+          type: number
+        impact:
+          type: number
+        note:
+          type: string
+      required: [meetings, avgVsOpponent, hitRateVsOpponent, impact, note]
+
+    PropFactors:
+      type: object
+      properties:
+        weather:
+          oneOf:
+            - $ref: "#/components/schemas/WeatherFactor"
+            - type: "null"
+        opponent:
+          $ref: "#/components/schemas/OpponentFactor"
+        h2h:
+          $ref: "#/components/schemas/H2HFactor"
+      required: [opponent, h2h]
+
     PlayerProp:
       type: object
       properties:
         id:
           type: number
+        playerId:
+          type: string
         sport:
           type: string
         playerName:
           type: string
         playerImage:
+          type: string
+        position:
           type: string
         teamAbbr:
           type: string
@@ -421,6 +499,15 @@ components:
             type: string
         riskWarning:
           type: string
+        recentGames:
+          type: array
+          items:
+            $ref: "#/components/schemas/RecentGame"
+        factors:
+          $ref: "#/components/schemas/PropFactors"
+        bestPick:
+          type: boolean
+          description: True if this is the player's highest win-probability pick of the day.
         gameId:
           type: string
         gameLabel:
@@ -431,7 +518,7 @@ components:
           description: ISO timestamp of game start.
         createdAt:
           type: string
-      required: [id, sport, playerName, teamAbbr, opponentAbbr, propType, line, edgeScore, winProbability, recommendation, action]
+      required: [id, playerId, sport, playerName, teamAbbr, opponentAbbr, propType, line, edgeScore, winProbability, recommendation, action, recentGames, factors, bestPick]
 
     LiveEdge:
       type: object

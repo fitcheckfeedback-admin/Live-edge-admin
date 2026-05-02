@@ -20,11 +20,51 @@ export interface Game {
   isLive: boolean;
 }
 
+export interface RecentGame {
+  date: string; // YYYY-MM-DD
+  opponent: string; // abbreviation, with @ prefix for away
+  isHome: boolean;
+  value: number;
+  beatLine: boolean;
+}
+
+export interface WeatherFactor {
+  indoor: boolean;
+  tempF?: number;
+  windMph?: number;
+  conditions?: string; // "Clear" | "Light Rain" | "Wind" | "Dome"
+  impact: number; // -10 to +10 percentage-point nudge to over win prob
+  note: string;
+}
+
+export interface OpponentFactor {
+  rank: number; // 1 = toughest defense, 30 = easiest
+  rating: "Elite" | "Strong" | "Average" | "Weak" | "Burnable";
+  impact: number; // -10 to +10 pp
+  note: string;
+}
+
+export interface H2HFactor {
+  meetings: number;
+  avgVsOpponent: number;
+  hitRateVsOpponent: number;
+  impact: number; // -10 to +10 pp
+  note: string;
+}
+
+export interface PropFactors {
+  weather: WeatherFactor | null;
+  opponent: OpponentFactor;
+  h2h: H2HFactor;
+}
+
 export interface PlayerProp {
   id: number;
+  playerId: string;
   sport: string;
   playerName: string;
   playerImage?: string;
+  position?: string;
   teamAbbr: string;
   teamLogo?: string;
   opponentAbbr: string;
@@ -46,6 +86,9 @@ export interface PlayerProp {
   reasoning: string;
   redFlags: string[];
   riskWarning: string;
+  recentGames: RecentGame[];
+  factors: PropFactors;
+  bestPick: boolean;
   gameId?: string;
   gameLabel?: string;
   gameStartTime?: string;

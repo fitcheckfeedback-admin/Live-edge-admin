@@ -98,9 +98,11 @@ export const GetBestPropsResponse = zod.object({
   props: zod.array(
     zod.object({
       id: zod.number(),
+      playerId: zod.string(),
       sport: zod.string(),
       playerName: zod.string(),
       playerImage: zod.string().optional(),
+      position: zod.string().optional(),
       teamAbbr: zod.string(),
       teamLogo: zod.string().optional(),
       opponentAbbr: zod.string(),
@@ -132,6 +134,48 @@ export const GetBestPropsResponse = zod.object({
       reasoning: zod.string().optional(),
       redFlags: zod.array(zod.string()).optional(),
       riskWarning: zod.string().optional(),
+      recentGames: zod.array(
+        zod.object({
+          date: zod.string(),
+          opponent: zod.string(),
+          isHome: zod.boolean(),
+          value: zod.number(),
+          beatLine: zod.boolean(),
+        }),
+      ),
+      factors: zod.object({
+        weather: zod
+          .union([
+            zod.object({
+              indoor: zod.boolean(),
+              tempF: zod.number().optional(),
+              windMph: zod.number().optional(),
+              conditions: zod.string().optional(),
+              impact: zod.number(),
+              note: zod.string(),
+            }),
+            zod.null(),
+          ])
+          .optional(),
+        opponent: zod.object({
+          rank: zod.number(),
+          rating: zod.enum(["Elite", "Strong", "Average", "Weak", "Burnable"]),
+          impact: zod.number(),
+          note: zod.string(),
+        }),
+        h2h: zod.object({
+          meetings: zod.number(),
+          avgVsOpponent: zod.number(),
+          hitRateVsOpponent: zod.number(),
+          impact: zod.number(),
+          note: zod.string(),
+        }),
+      }),
+      bestPick: zod
+        .boolean()
+        .describe(
+          "True if this is the player's highest win-probability pick of the day.",
+        ),
       gameId: zod.string().optional(),
       gameLabel: zod
         .string()
@@ -343,9 +387,11 @@ export const GetDashboardSummaryResponse = zod.object({
   topEdgeProp: zod
     .object({
       id: zod.number(),
+      playerId: zod.string(),
       sport: zod.string(),
       playerName: zod.string(),
       playerImage: zod.string().optional(),
+      position: zod.string().optional(),
       teamAbbr: zod.string(),
       teamLogo: zod.string().optional(),
       opponentAbbr: zod.string(),
@@ -377,6 +423,48 @@ export const GetDashboardSummaryResponse = zod.object({
       reasoning: zod.string().optional(),
       redFlags: zod.array(zod.string()).optional(),
       riskWarning: zod.string().optional(),
+      recentGames: zod.array(
+        zod.object({
+          date: zod.string(),
+          opponent: zod.string(),
+          isHome: zod.boolean(),
+          value: zod.number(),
+          beatLine: zod.boolean(),
+        }),
+      ),
+      factors: zod.object({
+        weather: zod
+          .union([
+            zod.object({
+              indoor: zod.boolean(),
+              tempF: zod.number().optional(),
+              windMph: zod.number().optional(),
+              conditions: zod.string().optional(),
+              impact: zod.number(),
+              note: zod.string(),
+            }),
+            zod.null(),
+          ])
+          .optional(),
+        opponent: zod.object({
+          rank: zod.number(),
+          rating: zod.enum(["Elite", "Strong", "Average", "Weak", "Burnable"]),
+          impact: zod.number(),
+          note: zod.string(),
+        }),
+        h2h: zod.object({
+          meetings: zod.number(),
+          avgVsOpponent: zod.number(),
+          hitRateVsOpponent: zod.number(),
+          impact: zod.number(),
+          note: zod.string(),
+        }),
+      }),
+      bestPick: zod
+        .boolean()
+        .describe(
+          "True if this is the player's highest win-probability pick of the day.",
+        ),
       gameId: zod.string().optional(),
       gameLabel: zod
         .string()

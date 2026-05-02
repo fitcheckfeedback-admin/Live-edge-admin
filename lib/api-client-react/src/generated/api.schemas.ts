@@ -39,6 +39,55 @@ export interface Game {
   isLive: boolean;
 }
 
+export interface RecentGame {
+  date: string;
+  opponent: string;
+  isHome: boolean;
+  value: number;
+  beatLine: boolean;
+}
+
+export interface WeatherFactor {
+  indoor: boolean;
+  tempF?: number;
+  windMph?: number;
+  conditions?: string;
+  impact: number;
+  note: string;
+}
+
+export type OpponentFactorRating =
+  (typeof OpponentFactorRating)[keyof typeof OpponentFactorRating];
+
+export const OpponentFactorRating = {
+  Elite: "Elite",
+  Strong: "Strong",
+  Average: "Average",
+  Weak: "Weak",
+  Burnable: "Burnable",
+} as const;
+
+export interface OpponentFactor {
+  rank: number;
+  rating: OpponentFactorRating;
+  impact: number;
+  note: string;
+}
+
+export interface H2HFactor {
+  meetings: number;
+  avgVsOpponent: number;
+  hitRateVsOpponent: number;
+  impact: number;
+  note: string;
+}
+
+export interface PropFactors {
+  weather?: WeatherFactor | null;
+  opponent: OpponentFactor;
+  h2h: H2HFactor;
+}
+
 export type PlayerPropTrend =
   (typeof PlayerPropTrend)[keyof typeof PlayerPropTrend];
 
@@ -80,9 +129,11 @@ export const PlayerPropAction = {
 
 export interface PlayerProp {
   id: number;
+  playerId: string;
   sport: string;
   playerName: string;
   playerImage?: string;
+  position?: string;
   teamAbbr: string;
   teamLogo?: string;
   opponentAbbr: string;
@@ -105,6 +156,10 @@ export interface PlayerProp {
   reasoning?: string;
   redFlags?: string[];
   riskWarning?: string;
+  recentGames: RecentGame[];
+  factors: PropFactors;
+  /** True if this is the player's highest win-probability pick of the day. */
+  bestPick: boolean;
   gameId?: string;
   /** Human-readable matchup label (e.g. "LAL @ DEN" or "NYY @ BOS") */
   gameLabel?: string;
