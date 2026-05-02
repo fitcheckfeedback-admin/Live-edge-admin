@@ -1,0 +1,336 @@
+Build a complete automated sports betting research dashboard called Live Edge Engine.
+
+This app is for research only. It should not place bets, bypass logins, scrape protected pages, bypass captchas, or violate website terms.
+
+MAIN GOAL:
+Create a clean, polished, automated sports prop research tool that pulls current games, live scores, team logos, player photos, mock/real API-ready player props, recent game logs, and live pace projections to help identify stronger betting angles.
+
+I do NOT want manual input as the main workflow.
+
+TECH STACK:
+- Python Flask backend
+- SQLite database
+- HTML/CSS/JavaScript frontend
+- python-dotenv
+- Modular integrations folder
+- Mobile-friendly dark premium dashboard
+- App runs with: python app.py
+
+CREATE FILE STRUCTURE:
+app.py
+database.py
+analyzer.py
+live_engine.py
+alerts.py
+requirements.txt
+.env.example
+README.md
+/templates/index.html
+/static/css/style.css
+/static/js/app.js
+/static/img/placeholders/
+/integrations/espn_provider.py
+/integrations/odds_provider.py
+/integrations/nba_provider.py
+/integrations/mlb_provider.py
+/integrations/nfl_provider.py
+/integrations/prizepicks_provider.py
+/integrations/underdog_provider.py
+/integrations/injury_provider.py
+/integrations/weather_provider.py
+/data/mock_data.py
+
+ENV VARIABLES:
+Create .env.example with:
+ODDS_API_KEY=
+SPORTSDATA_API_KEY=
+RAPIDAPI_KEY=
+PRIZEPICKS_API_KEY=
+UNDERDOG_API_KEY=
+DISCORD_WEBHOOK_URL=
+EMAIL_USER=
+EMAIL_PASSWORD=
+TWILIO_ACCOUNT_SID=
+TWILIO_AUTH_TOKEN=
+TWILIO_PHONE_NUMBER=
+MY_PHONE_NUMBER=
+
+If an API key is missing, safely fall back to mock data and show “Mock Mode” in the Data Sources tab.
+
+PHASE 1: AUTOMATED CURRENT GAMES + SCOREBOARD
+Use ESPN public scoreboard endpoints where available.
+
+Create integrations/espn_provider.py that pulls:
+- NBA scoreboard
+- MLB scoreboard
+- NFL scoreboard
+- Today’s games
+- Game status: scheduled, live, final
+- Start time
+- Away team
+- Home team
+- Away score
+- Home score
+- Quarter/inning/period
+- Clock/time remaining
+- Team abbreviation
+- Team name
+- Team logo URL
+- Team color when available
+
+Create functions:
+get_today_scoreboard(sport)
+normalize_game_data(raw_data)
+get_team_logo(team_id, sport)
+get_player_headshot(player_id, sport)
+
+If ESPN fails, use mock data.
+
+PHASE 2: TEAM LOGOS + PLAYER HEADSHOTS
+Add actual team logos using ESPN logo URLs when available.
+Show logos everywhere teams appear:
+- Today’s Games cards
+- Prop cards
+- Live Edge Board
+- Results Tracker
+
+Add player headshots using ESPN athlete image URLs when available.
+If no player image exists, show a clean placeholder silhouette.
+Every prop card should show:
+- Player image
+- Player name
+- Team logo
+- Opponent logo
+- Prop type
+- Line
+- Over/Under lean
+- Edge score
+
+PHASE 3: AUTOMATED PLAYER PROP ANALYZER
+Create providers for player props:
+- odds_provider.py
+- prizepicks_provider.py
+- underdog_provider.py
+
+Do not bypass protected APIs or logins.
+If real API keys or legal feeds are unavailable, use realistic mock player prop data.
+
+Automatically:
+- Load today’s games
+- Load player props
+- Load player recent game logs
+- Match each prop to the correct player
+- Calculate last 5 average
+- Calculate last 10 average
+- Calculate hit rate last 5
+- Calculate hit rate last 10
+- Calculate line gap
+- Calculate consistency
+- Calculate trend direction
+- Generate recommendation:
+  - Strong Over
+  - Lean Over
+  - Avoid
+  - Lean Under
+  - Strong Under
+
+PHASE 4: EDGE SCORING ENGINE
+Create edge_score from 1-10 using:
+- 30% recent hit rate
+- 25% line gap versus average
+- 20% consistency
+- 15% trend
+- 10% matchup/injury/news/weather placeholder factors
+
+Show:
+- Edge Score
+- Confidence level
+- Risk warning
+- Reasoning summary
+- Red flags
+- Final action:
+  - Strong Play
+  - Lean
+  - Avoid
+  - Trap Line
+
+Sort Best Picks Today from strongest to weakest.
+
+PHASE 5: LIVE BETTING DASHBOARD
+Create a Live Edge Board that updates every 15 seconds.
+
+Automatically pull or mock live game state:
+- Current score
+- Quarter/period/inning
+- Time remaining
+- Player current stat total
+- Minutes played or usage
+- Current live prop line if available
+
+Calculate:
+percent_game_completed
+projected_final = current_stat / percent_game_completed
+needed_remaining = line - current_stat
+live_edge_percentage
+live recommendation:
+- Strong Live Over
+- Lean Live Over
+- Avoid
+- Lean Live Under
+- Strong Live Under
+
+Recommendation rules:
+- If projected final is 15%+ above line = Strong Live Over
+- If projected final is 5-15% above line = Lean Live Over
+- If projected final is within 5% of line = Avoid
+- If projected final is 5-15% below line = Lean Live Under
+- If projected final is 15%+ below line = Strong Live Under
+
+PHASE 6: ALERTS
+Create in-app alerts when:
+- Pregame edge score is 8.0+
+- Live projection is 15%+ above the line
+- Live projection is 15%+ below the line
+- A prop moves from Avoid to Lean or Strong
+- A line changes significantly
+
+Save alerts to SQLite.
+
+Add placeholder functions for:
+- Email alerts
+- SMS alerts
+- Discord webhook alerts
+
+Do not activate paid services yet.
+
+PHASE 7: RESULTS TRACKER
+Automatically save tracked picks.
+
+Statuses:
+- Pending
+- Win
+- Loss
+- Push
+- DNP
+- Line Removed
+
+Track:
+- Date
+- Sport
+- Player
+- Team
+- Opponent
+- Prop type
+- Line
+- Recommendation
+- Edge score
+- Result
+- Profit/loss
+- Closing line if available
+
+Add CSV export.
+
+PHASE 8: FLASK API ROUTES
+Create these routes:
+GET /
+GET /api/schedule/today
+GET /api/scores/live
+GET /api/props/best
+GET /api/live-edge
+GET /api/alerts
+GET /api/results
+POST /api/refresh
+POST /api/results/update
+GET /api/export/csv
+GET /api/status
+
+PHASE 9: FRONTEND UI
+Make the dashboard feel like a premium sports betting analytics app.
+
+Use:
+- Dark glassmorphism style
+- Clean card layout
+- Sticky top nav
+- Sport filter pills: All, NBA, MLB, NFL
+- Live games carousel
+- Best picks grid
+- Player cards
+- Big Edge Score badges
+- Green/yellow/red indicators
+- Team color accents
+- Smooth loading states
+- Skeleton loaders
+- Empty states when no games are live
+- Error states when ESPN/API fails
+- Mobile responsive design
+
+Dashboard tabs:
+1. Today’s Games
+2. Best Picks Today
+3. Live Edge Board
+4. Alerts
+5. Results Tracker
+6. Data Sources / API Status
+
+Real-time behavior:
+- Scores refresh every 15 seconds
+- Live board refreshes every 15 seconds
+- Do not reload the full page
+- Use JavaScript fetch calls
+- Show “Last updated: timestamp”
+- Add small live pulse indicator when games are live
+
+PHASE 10: MOCK DATA
+Create strong realistic mock data for:
+- NBA games
+- MLB games
+- NFL games
+- Player props
+- Player recent game logs
+- Live player stats
+- Player images
+- Team logos
+- Alerts
+
+On app startup:
+- Initialize database
+- Load mock data if real feeds are unavailable
+- Run analyzer automatically
+- Populate Today’s Games
+- Populate Best Picks Today
+- Populate Live Edge Board
+- Populate Alerts if edge score is 8+
+
+No manual input should be required.
+
+PHASE 11: README
+Create README explaining:
+- How to run app
+- How to install requirements
+- Where API keys go
+- Which providers are mock mode
+- ESPN scoreboard usage
+- Scores update every 15 seconds
+- Player props require legal odds/props API later
+- This is research only and does not guarantee wins
+
+FINAL CHECK:
+Review and fix the whole app.
+
+Make sure:
+- App runs with python app.py
+- Database initializes automatically
+- Dashboard loads automatically
+- Today’s games appear
+- Team logos appear
+- Player headshots appear or fallback appears
+- Scores refresh every 15 seconds
+- Live board refreshes every 15 seconds
+- Best Picks Today is populated
+- Alerts save correctly
+- Results tracker works
+- CSV export works
+- API status tab works
+- Mobile layout works
+- Mock mode works if APIs fail
+- Code is clean, organized, and commented

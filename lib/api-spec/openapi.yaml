@@ -1,22 +1,34 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Live Edge Engine API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: schedule
+    description: Game schedules
+  - name: scores
+    description: Live scores
+  - name: props
+    description: Player props and analysis
+  - name: live-edge
+    description: Live edge board
+  - name: alerts
+    description: Alerts
+  - name: results
+    description: Results tracker
+  - name: status
+    description: API status
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,6 +36,279 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /schedule/today:
+    get:
+      operationId: getScheduleToday
+      tags: [schedule]
+      summary: Get today's games
+      parameters:
+        - name: sport
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [NBA, MLB, NFL, ALL]
+      responses:
+        "200":
+          description: Today's games
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  games:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Game"
+                  lastUpdated:
+                    type: string
+                required: [games, lastUpdated]
+
+  /scores/live:
+    get:
+      operationId: getLiveScores
+      tags: [scores]
+      summary: Get live game scores
+      responses:
+        "200":
+          description: Live scores
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  games:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Game"
+                  lastUpdated:
+                    type: string
+                required: [games, lastUpdated]
+
+  /props/best:
+    get:
+      operationId: getBestProps
+      tags: [props]
+      summary: Get best player props sorted by edge score
+      parameters:
+        - name: sport
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [NBA, MLB, NFL, ALL]
+        - name: minEdge
+          in: query
+          required: false
+          schema:
+            type: number
+      responses:
+        "200":
+          description: Best props
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  props:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/PlayerProp"
+                  lastUpdated:
+                    type: string
+                required: [props, lastUpdated]
+
+  /live-edge:
+    get:
+      operationId: getLiveEdge
+      tags: [live-edge]
+      summary: Get live edge board
+      responses:
+        "200":
+          description: Live edge data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  edges:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/LiveEdge"
+                  lastUpdated:
+                    type: string
+                required: [edges, lastUpdated]
+
+  /alerts:
+    get:
+      operationId: getAlerts
+      tags: [alerts]
+      summary: Get alerts
+      parameters:
+        - name: unreadOnly
+          in: query
+          required: false
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: Alerts list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  alerts:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Alert"
+                  unreadCount:
+                    type: number
+                required: [alerts, unreadCount]
+
+  /alerts/{id}/read:
+    post:
+      operationId: markAlertRead
+      tags: [alerts]
+      summary: Mark alert as read
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: number
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Alert"
+
+  /results:
+    get:
+      operationId: getResults
+      tags: [results]
+      summary: Get results tracker
+      parameters:
+        - name: sport
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  results:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Result"
+                  summary:
+                    $ref: "#/components/schemas/ResultsSummary"
+                required: [results, summary]
+
+  /results/{id}:
+    patch:
+      operationId: updateResult
+      tags: [results]
+      summary: Update a tracked result
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: number
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PatchResultBody"
+      responses:
+        "200":
+          description: Updated result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Result"
+
+  /export/csv:
+    get:
+      operationId: exportResultsCsv
+      tags: [results]
+      summary: Export results as CSV
+      responses:
+        "200":
+          description: CSV file
+          content:
+            text/csv:
+              schema:
+                type: string
+
+  /refresh:
+    post:
+      operationId: refreshData
+      tags: [status]
+      summary: Trigger manual data refresh
+      responses:
+        "200":
+          description: Refresh result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                required: [success, message]
+
+  /api-status:
+    get:
+      operationId: getApiStatus
+      tags: [status]
+      summary: Get status of all data providers
+      responses:
+        "200":
+          description: Provider status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  providers:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/ProviderStatus"
+                  mockMode:
+                    type: boolean
+                required: [providers, mockMode]
+
+  /dashboard/summary:
+    get:
+      operationId: getDashboardSummary
+      tags: [props]
+      summary: Get dashboard summary stats
+      responses:
+        "200":
+          description: Dashboard summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+
 components:
   schemas:
     HealthStatus:
@@ -31,6 +316,282 @@ components:
       properties:
         status:
           type: string
-      required:
-        - status
+      required: [status]
 
+    Game:
+      type: object
+      properties:
+        id:
+          type: string
+        sport:
+          type: string
+        status:
+          type: string
+          enum: [scheduled, live, final]
+        startTime:
+          type: string
+        awayTeam:
+          $ref: "#/components/schemas/Team"
+        homeTeam:
+          $ref: "#/components/schemas/Team"
+        awayScore:
+          type: number
+        homeScore:
+          type: number
+        period:
+          type: string
+        clock:
+          type: string
+        isLive:
+          type: boolean
+      required: [id, sport, status, awayTeam, homeTeam, isLive]
+
+    Team:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        abbreviation:
+          type: string
+        logoUrl:
+          type: string
+        color:
+          type: string
+      required: [id, name, abbreviation]
+
+    PlayerProp:
+      type: object
+      properties:
+        id:
+          type: number
+        sport:
+          type: string
+        playerName:
+          type: string
+        playerImage:
+          type: string
+        teamAbbr:
+          type: string
+        teamLogo:
+          type: string
+        opponentAbbr:
+          type: string
+        opponentLogo:
+          type: string
+        propType:
+          type: string
+        line:
+          type: number
+        avg5:
+          type: number
+        avg10:
+          type: number
+        hitRate5:
+          type: number
+        hitRate10:
+          type: number
+        lineGap:
+          type: number
+        consistency:
+          type: number
+        trend:
+          type: string
+          enum: [up, down, flat]
+        edgeScore:
+          type: number
+        confidence:
+          type: string
+          enum: [High, Medium, Low]
+        recommendation:
+          type: string
+          enum: [Strong Over, Lean Over, Avoid, Lean Under, Strong Under]
+        action:
+          type: string
+          enum: [Strong Play, Lean, Avoid, Trap Line]
+        reasoning:
+          type: string
+        redFlags:
+          type: array
+          items:
+            type: string
+        riskWarning:
+          type: string
+        gameId:
+          type: string
+        createdAt:
+          type: string
+      required: [id, sport, playerName, teamAbbr, opponentAbbr, propType, line, edgeScore, recommendation, action]
+
+    LiveEdge:
+      type: object
+      properties:
+        id:
+          type: number
+        propId:
+          type: number
+        playerName:
+          type: string
+        playerImage:
+          type: string
+        teamAbbr:
+          type: string
+        propType:
+          type: string
+        line:
+          type: number
+        currentStat:
+          type: number
+        minutesPlayed:
+          type: number
+        percentComplete:
+          type: number
+        projectedFinal:
+          type: number
+        neededRemaining:
+          type: number
+        liveEdgePercent:
+          type: number
+        liveRecommendation:
+          type: string
+          enum: [Strong Live Over, Lean Live Over, Avoid, Lean Live Under, Strong Live Under]
+        sport:
+          type: string
+        gameStatus:
+          type: string
+        period:
+          type: string
+        clock:
+          type: string
+        updatedAt:
+          type: string
+      required: [id, propId, playerName, propType, line, currentStat, percentComplete, projectedFinal, liveRecommendation]
+
+    Alert:
+      type: object
+      properties:
+        id:
+          type: number
+        type:
+          type: string
+        title:
+          type: string
+        message:
+          type: string
+        sport:
+          type: string
+        playerName:
+          type: string
+        edgeScore:
+          type: number
+        isRead:
+          type: boolean
+        createdAt:
+          type: string
+        severity:
+          type: string
+          enum: [high, medium, low]
+      required: [id, type, title, message, isRead, createdAt, severity]
+
+    Result:
+      type: object
+      properties:
+        id:
+          type: number
+        date:
+          type: string
+        sport:
+          type: string
+        playerName:
+          type: string
+        teamAbbr:
+          type: string
+        opponentAbbr:
+          type: string
+        propType:
+          type: string
+        line:
+          type: number
+        recommendation:
+          type: string
+        edgeScore:
+          type: number
+        status:
+          type: string
+          enum: [Pending, Win, Loss, Push, DNP, Line Removed]
+        profitLoss:
+          type: number
+        closingLine:
+          type: number
+        createdAt:
+          type: string
+      required: [id, date, sport, playerName, teamAbbr, opponentAbbr, propType, line, recommendation, edgeScore, status]
+
+    PatchResultBody:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [Pending, Win, Loss, Push, DNP, Line Removed]
+        profitLoss:
+          type: number
+        closingLine:
+          type: number
+      required: [status]
+
+    ResultsSummary:
+      type: object
+      properties:
+        total:
+          type: number
+        wins:
+          type: number
+        losses:
+          type: number
+        pushes:
+          type: number
+        winRate:
+          type: number
+        totalProfitLoss:
+          type: number
+        roi:
+          type: number
+      required: [total, wins, losses, pushes, winRate, totalProfitLoss, roi]
+
+    ProviderStatus:
+      type: object
+      properties:
+        name:
+          type: string
+        status:
+          type: string
+          enum: [live, mock, error]
+        lastChecked:
+          type: string
+        description:
+          type: string
+        mockMode:
+          type: boolean
+      required: [name, status, lastChecked, mockMode]
+
+    DashboardSummary:
+      type: object
+      properties:
+        totalGamesToday:
+          type: number
+        liveGames:
+          type: number
+        strongPlays:
+          type: number
+        totalProps:
+          type: number
+        avgEdgeScore:
+          type: number
+        activeAlerts:
+          type: number
+        recentWinRate:
+          type: number
+        topEdgeProp:
+          $ref: "#/components/schemas/PlayerProp"
+      required: [totalGamesToday, liveGames, strongPlays, totalProps, avgEdgeScore, activeAlerts, recentWinRate]
