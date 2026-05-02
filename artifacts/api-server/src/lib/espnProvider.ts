@@ -73,7 +73,9 @@ function formatPeriod(sport: string, period: string, status: string): string {
 
 async function fetchScoreboard(sport: string, league: string, date?: string): Promise<Game[]> {
   const url = `${ESPN_BASE}/${sport}/${league}/scoreboard${date ? `?dates=${date}` : ""}`;
-  const resp = await fetch(url, { signal: AbortSignal.timeout(5000) });
+  // 12s timeout — production cold starts have higher network latency to ESPN
+  // than the dev container (was 5s, which caused empty seeds in deployment).
+  const resp = await fetch(url, { signal: AbortSignal.timeout(12000) });
   if (!resp.ok) throw new Error(`ESPN ${sport}/${league} returned ${resp.status}`);
   const json = await resp.json() as any;
   const events: any[] = json?.events ?? [];

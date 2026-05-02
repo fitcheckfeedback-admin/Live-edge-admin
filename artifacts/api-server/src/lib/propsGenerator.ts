@@ -926,8 +926,19 @@ export async function getTodayProps(sport?: string): Promise<PlayerProp[]> {
     return sport && sport !== "ALL" ? all.filter((p) => p.sport === sport) : all;
   }
 
-  const { games } = await getTodayGames("ALL");
+  const { games, source } = await getTodayGames("ALL");
   const eligible = games.filter((g) => g.homeTeam.id && g.awayTeam.id);
+
+  // CRITICAL: when ESPN times out (source==="error") we get back an empty
+  // games list. Do NOT cache that — otherwise every request for the next
+  // PROPS_TTL window returns an empty player list, which is what the user
+  // saw as "no players showing" in production after a cold-start timeout.
+  // We return [] this call so the route doesn't hang, but next request will
+  // retry from upstream instead of serving a stale empty cache.
+  if (source === "error" && eligible.length === 0) {
+    logger.warn("ESPN scoreboard failed; returning empty props without caching so next request retries");
+    return [];
+  }
 
   // Pre-fetch league-wide stats (cached 6h)
   const [teamPitchingStats, nbaPaRanks] = await Promise.all([
