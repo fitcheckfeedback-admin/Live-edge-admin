@@ -21,12 +21,26 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
 
 ### Live Edge Engine (`/`)
 A sports betting research dashboard with:
-- Automated game scores via ESPN public API (falls back to mock data)
-- Player prop analysis with edge scoring (1-10 scale)
-- Live in-game projections refreshing every 15 seconds
-- Alerts for strong edges (8.0+) and live surges
+- Real-time game data fetched directly from ESPN public APIs (scoreboard + rosters), season-aware (no NFL during off-season)
+- Player props algorithmically generated for actual rostered players using a curated star list (`lib/starPlayers.ts`) + line-bias model — see Honesty section below
+- Edge scoring (1-10 scale) drives Strong Play / Lean / Avoid / Trap Line classification
+- Live in-game projections (only populates when games are actually live)
+- Alerts auto-generated from Strong Plays + Trap Lines
 - Results tracker with CSV export
-- Data source status / mock mode indicator
+- Data Sources tab shows provider status with full transparency
+
+### Honesty / data-source policy
+**PrizePicks and Underdog do NOT publish public APIs.** Their projection endpoints
+are gated behind mobile app authentication and rate-limited per device. We do
+not bypass those protections. Props shown in the app are *model-generated* for
+the actual players on tonight's real ESPN rosters — never for fake players or
+fake games. The Data Sources tab and provider descriptions in `lib/mockData.ts`
+make this explicit to users. To wire up real sportsbook odds, set the optional
+`ODDS_API_KEY` env var.
+
+ESPN failures are surfaced honestly: `getTodayGames()` returns
+`{ source: "espn" | "off-season" | "error", error?: string }` — endpoints no
+longer silently fall back to mock games on upstream failures.
 
 ### API Server (`/api`)
 Express backend serving all API routes:

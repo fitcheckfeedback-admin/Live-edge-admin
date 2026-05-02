@@ -55,7 +55,7 @@ export default function Home() {
             <Button 
               variant="outline" 
               size="sm" 
-              onClick={() => refreshMutation.mutate({})}
+              onClick={() => refreshMutation.mutate()}
               disabled={refreshMutation.isPending}
               className="gap-2"
             >

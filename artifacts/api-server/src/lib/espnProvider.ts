@@ -94,22 +94,39 @@ async function fetchScoreboard(sport: string, league: string): Promise<Game[]> {
   });
 }
 
-export async function getTodayGames(sport?: string): Promise<{ games: Game[]; source: "espn" | "mock" }> {
+export async function getTodayGames(
+  sport?: string,
+): Promise<{ games: Game[]; source: "espn" | "off-season" | "error"; error?: string }> {
   const activeSports = getActiveSports();
   const s = sport?.toUpperCase() ?? "ALL";
 
   const targets = activeSports.filter((t) => s === "ALL" || t.label === s);
 
   if (targets.length === 0) {
-    return { games: [], source: "espn" };
+    // No active leagues for this month/filter — honest off-season signal, not an error
+    return { games: [], source: "off-season" };
   }
 
-  try {
-    const results = await Promise.all(targets.map((t) => fetchScoreboard(t.sport, t.league)));
-    const games = results.flat();
-    return { games, source: "espn" };
-  } catch (err) {
-    logger.warn({ err }, "ESPN fetch failed — using mock data");
-    return { games: [], source: "mock" };
+  // Fetch each league independently so a single failure doesn't kill the whole response.
+  // We surface an error source if EVERY league failed; partial success degrades silently
+  // but the source still reads "espn" since we got real data.
+  const settled = await Promise.allSettled(
+    targets.map((t) => fetchScoreboard(t.sport, t.league)),
+  );
+  const games: Game[] = [];
+  const failures: string[] = [];
+  settled.forEach((r, i) => {
+    const t = targets[i]!;
+    if (r.status === "fulfilled") {
+      games.push(...r.value);
+    } else {
+      failures.push(`${t.label}: ${String(r.reason)}`);
+      logger.warn({ err: r.reason, league: t.label }, "ESPN scoreboard fetch failed");
+    }
+  });
+
+  if (failures.length === targets.length) {
+    return { games: [], source: "error", error: failures.join("; ") };
   }
+  return { games, source: "espn", ...(failures.length ? { error: failures.join("; ") } : {}) };
 }
