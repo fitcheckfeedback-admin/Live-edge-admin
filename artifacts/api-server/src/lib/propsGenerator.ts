@@ -37,6 +37,7 @@ import {
   type NbaPropKey,
 } from "./nbaStatsProvider";
 import { getWeatherForGame } from "./weatherProvider";
+import { snapshotProps, getTierWeights, classifyTier } from "./trackRecord";
 
 const ESPN_BASE = "https://site.api.espn.com/apis/site/v2/sports";
 
@@ -930,11 +931,30 @@ async function processNbaGame(
 // preference is what kills the Board's headline-pick Under bias: every
 // player has SOME props with hitRate near 50%, and those are what should
 // show on the card, not the extreme low-volume Under-by-default props.
+// In-memory tier multipliers refreshed from real graded history every hour.
+// Default 1.0 for every tier until we have ≥10 graded picks per tier.
+let tierWeights: Record<1 | 2 | 3 | 4, number> = { 1: 1, 2: 1, 3: 1, 4: 1 };
+async function refreshTierWeights(): Promise<void> {
+  try {
+    tierWeights = await getTierWeights();
+  } catch (err) {
+    logger.warn({ err: String(err) }, "tier weight refresh failed");
+  }
+}
+// Kick off once at module load and every hour after.
+refreshTierWeights();
+setInterval(() => { void refreshTierWeights(); }, 60 * 60 * 1000);
+
 function pickBestProp(props: PlayerProp[]): PlayerProp {
   const isBalanced = (p: PlayerProp) => p.hitRate10 >= 0.3 && p.hitRate10 <= 0.7;
   const hasVolume = (p: PlayerProp) => p.line >= 1;
+  // Weighted pick within a tier: winProbability × tier-weight (auto-tuned).
   const best = (arr: PlayerProp[]) =>
-    arr.reduce((b, p) => (p.winProbability > b.winProbability ? p : b));
+    arr.reduce((b, p) => {
+      const wB = b.winProbability * tierWeights[classifyTier(b)];
+      const wP = p.winProbability * tierWeights[classifyTier(p)];
+      return wP > wB ? p : b;
+    });
 
   const tier1 = props.filter((p) => isBalanced(p) && hasVolume(p));
   if (tier1.length) return best(tier1);
@@ -1022,6 +1042,15 @@ export async function getTodayProps(sport?: string): Promise<PlayerProp[]> {
 
   allProps.sort((a, b) => b.edgeScore - a.edgeScore);
   propsCache = { ts: Date.now(), props: allProps };
+
+  // Fire-and-forget: snapshot today's recommended picks for the auto-grader.
+  // ON CONFLICT DO NOTHING means safe to call repeatedly.
+  snapshotProps(allProps)
+    .then((r) => {
+      if (r.inserted > 0) logger.info({ inserted: r.inserted }, "trackRecord snapshot saved");
+    })
+    .catch((err) => logger.warn({ err: String(err) }, "trackRecord snapshot failed"));
+
   return sport && sport !== "ALL" ? allProps.filter((p) => p.sport === sport) : allProps;
 }
 

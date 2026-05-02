@@ -23,6 +23,8 @@ tags:
     description: Results tracker
   - name: status
     description: API status
+  - name: track-record
+    description: Auto-graded pick history and tier performance
 paths:
   /healthz:
     get:
@@ -308,6 +310,48 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/DashboardSummary"
+
+  /track-record:
+    get:
+      operationId: getTrackRecord
+      tags: [track-record]
+      summary: Auto-graded pick performance — overall, by sport/prop/tier
+      parameters:
+        - name: window
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [7d, 30d, all]
+      responses:
+        "200":
+          description: Track record stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TrackRecord"
+
+  /track-record/grade:
+    post:
+      operationId: gradeTrackRecord
+      tags: [track-record]
+      summary: Manually trigger grading of pending snapshots
+      responses:
+        "200":
+          description: Grading result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  graded: { type: number }
+                  hits: { type: number }
+                  misses: { type: number }
+                  pushes: { type: number }
+                  dnp: { type: number }
+                  pending: { type: number }
+                  message: { type: string }
+                required: [graded, hits, misses, pushes, dnp, pending, message]
 
 components:
   schemas:
@@ -670,6 +714,60 @@ components:
         mockMode:
           type: boolean
       required: [name, status, lastChecked, mockMode]
+
+    TrackRecordBucket:
+      type: object
+      properties:
+        label: { type: string }
+        graded: { type: number }
+        hits: { type: number }
+        misses: { type: number }
+        pushes: { type: number }
+        dnp: { type: number }
+        pending: { type: number }
+        hitRate: { type: number, description: "0-100" }
+      required: [label, graded, hits, misses, pushes, dnp, pending, hitRate]
+
+    TrackRecordPick:
+      type: object
+      properties:
+        id: { type: number }
+        date: { type: string }
+        sport: { type: string }
+        playerName: { type: string }
+        teamAbbr: { type: string }
+        opponentAbbr: { type: string }
+        propType: { type: string }
+        line: { type: number }
+        side: { type: string, enum: [Over, Under] }
+        winProbability: { type: number }
+        edgeScore: { type: number }
+        isBestPick: { type: boolean }
+        bestPickTier: { type: number }
+        actualValue: { type: number }
+        result: { type: string, enum: [PENDING, HIT, MISS, PUSH, DNP] }
+      required: [id, date, sport, playerName, teamAbbr, opponentAbbr, propType, line, side, winProbability, edgeScore, isBestPick, result]
+
+    TrackRecord:
+      type: object
+      properties:
+        window: { type: string }
+        overall: { $ref: "#/components/schemas/TrackRecordBucket" }
+        bestPicks: { $ref: "#/components/schemas/TrackRecordBucket" }
+        otherPicks: { $ref: "#/components/schemas/TrackRecordBucket" }
+        bySport:
+          type: array
+          items: { $ref: "#/components/schemas/TrackRecordBucket" }
+        byTier:
+          type: array
+          items: { $ref: "#/components/schemas/TrackRecordBucket" }
+        byPropType:
+          type: array
+          items: { $ref: "#/components/schemas/TrackRecordBucket" }
+        recent:
+          type: array
+          items: { $ref: "#/components/schemas/TrackRecordPick" }
+      required: [window, overall, bestPicks, otherPicks, bySport, byTier, byPropType, recent]
 
     DashboardSummary:
       type: object

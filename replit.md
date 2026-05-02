@@ -81,6 +81,17 @@ Express backend serving all API routes:
 - `POST /api/refresh` — trigger data refresh
 - `GET /api/api-status` — provider status
 - `GET /api/dashboard/summary` — overview stats
+- `GET /api/track-record?window=7d|30d|all` — rolling hit-rate stats (overall, best vs other, by sport, by tier, by prop type) and 50 most recent graded picks
+- `POST /api/track-record/grade` — manually run the grader (also runs in-process at startup + hourly)
+
+### Track Record (auto-grading)
+Daily slate is snapshotted into `pick_snapshots` (one row per recommended Over/Under side) every time `getTodayProps()` runs. The grader:
+- Pulls each pending snapshot whose ET slate date is in the past.
+- Looks up the player's real game log (MLB Stats API or ESPN) and matches by **exact slate date**, disambiguating doubleheaders by **opponent team**.
+- Compares the real stat value to the model's line → HIT / MISS / PUSH.
+- If no log entry is found, keeps the row PENDING for retry until the slate is at least **2 ET days old** (then DNP). This protects late west-coast games from being prematurely marked DNP at midnight ET.
+- The unique snapshot key is `(date, player_id, prop_type, line, side, game_id)` so MLB doubleheaders don't collapse into one row.
+- A per-tier 30-day hit-rate weight (0.7–1.3, requires ≥10 graded picks per tier) feeds back into `pickBestProp`'s tier sort — the model literally tunes itself from real grading results.
 
 ## Data Providers
 - **ESPN**: Free public scoreboard API (no key required)

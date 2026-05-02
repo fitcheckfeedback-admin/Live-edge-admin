@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { LayoutGrid, Calendar, Receipt, Bell, MoreHorizontal, Activity, Trophy, Database, Home as HomeIcon } from "lucide-react";
+import { LayoutGrid, Calendar, Receipt, Bell, MoreHorizontal, Activity, Trophy, Database, Home as HomeIcon, BarChart3 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useBetSlip } from "@/lib/betSlip";
 import { useNav } from "@/lib/navContext";
@@ -32,6 +32,7 @@ const PRIMARY_TABS: { value: string; label: string; icon: typeof LayoutGrid }[] 
 const MORE_TABS: { value: string; label: string; icon: typeof LayoutGrid; description: string }[] = [
   { value: "overview", label: "Overview", icon: HomeIcon, description: "Top stats and the day's biggest edge" },
   { value: "live", label: "Live Edge", icon: Activity, description: "In-game projections updated every 15s" },
+  { value: "trackrecord", label: "Track Record", icon: BarChart3, description: "Auto-graded model performance by tier" },
   { value: "results", label: "Results", icon: Trophy, description: "Hit/miss tracker and CSV export" },
   { value: "sources", label: "Data Sources", icon: Database, description: "Provider status and transparency" },
 ];

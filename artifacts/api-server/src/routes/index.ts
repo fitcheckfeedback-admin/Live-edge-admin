@@ -7,6 +7,7 @@ import liveEdgeRouter from "./liveEdge";
 import alertsRouter from "./alerts";
 import resultsRouter from "./results";
 import statusRouter from "./status";
+import trackRecordRouter from "./trackRecord";
 
 const router: IRouter = Router();
 
@@ -18,5 +19,6 @@ router.use(liveEdgeRouter);
 router.use(alertsRouter);
 router.use(resultsRouter);
 router.use(statusRouter);
+router.use(trackRecordRouter);
 
 export default router;

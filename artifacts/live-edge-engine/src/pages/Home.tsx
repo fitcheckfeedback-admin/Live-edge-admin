@@ -15,6 +15,7 @@ import LiveEdgeTab from "./tabs/LiveEdgeTab";
 import AlertsTab from "./tabs/AlertsTab";
 import ResultsTab from "./tabs/ResultsTab";
 import DataSourcesTab from "./tabs/DataSourcesTab";
+import TrackRecordTab from "./tabs/TrackRecordTab";
 
 function HomeInner() {
   const { toast } = useToast();
@@ -95,6 +96,9 @@ function HomeInner() {
             </TabsContent>
             <TabsContent value="results" className="mt-0 focus-visible:outline-none">
               <ResultsTab />
+            </TabsContent>
+            <TabsContent value="trackrecord" className="mt-0 focus-visible:outline-none">
+              <TrackRecordTab />
             </TabsContent>
             <TabsContent value="sources" className="mt-0 focus-visible:outline-none">
               <DataSourcesTab />

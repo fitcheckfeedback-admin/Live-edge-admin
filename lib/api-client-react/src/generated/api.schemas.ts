@@ -295,6 +295,66 @@ export interface ProviderStatus {
   mockMode: boolean;
 }
 
+export interface TrackRecordBucket {
+  label: string;
+  graded: number;
+  hits: number;
+  misses: number;
+  pushes: number;
+  dnp: number;
+  pending: number;
+  /** 0-100 */
+  hitRate: number;
+}
+
+export type TrackRecordPickSide =
+  (typeof TrackRecordPickSide)[keyof typeof TrackRecordPickSide];
+
+export const TrackRecordPickSide = {
+  Over: "Over",
+  Under: "Under",
+} as const;
+
+export type TrackRecordPickResult =
+  (typeof TrackRecordPickResult)[keyof typeof TrackRecordPickResult];
+
+export const TrackRecordPickResult = {
+  PENDING: "PENDING",
+  HIT: "HIT",
+  MISS: "MISS",
+  PUSH: "PUSH",
+  DNP: "DNP",
+} as const;
+
+export interface TrackRecordPick {
+  id: number;
+  date: string;
+  sport: string;
+  playerName: string;
+  teamAbbr: string;
+  opponentAbbr: string;
+  propType: string;
+  line: number;
+  side: TrackRecordPickSide;
+  winProbability: number;
+  edgeScore: number;
+  isBestPick: boolean;
+  bestPickTier?: number;
+  actualValue?: number;
+  result: TrackRecordPickResult;
+}
+
+export interface TrackRecord {
+  window: string;
+  overall: TrackRecordBucket;
+  bestPicks: TrackRecordBucket;
+  otherPicks: TrackRecordBucket;
+  bySport: TrackRecordBucket[];
+  byTier: TrackRecordBucket[];
+  byPropType: TrackRecordBucket[];
+  recent: TrackRecordPick[];
+}
+
 export interface DashboardSummary {
   totalGamesToday: number;
   liveGames: number;
@@ -380,4 +440,27 @@ export type RefreshData200 = {
 export type GetApiStatus200 = {
   providers: ProviderStatus[];
   mockMode: boolean;
+};
+
+export type GetTrackRecordParams = {
+  window?: GetTrackRecordWindow;
+};
+
+export type GetTrackRecordWindow =
+  (typeof GetTrackRecordWindow)[keyof typeof GetTrackRecordWindow];
+
+export const GetTrackRecordWindow = {
+  "7d": "7d",
+  "30d": "30d",
+  all: "all",
+} as const;
+
+export type GradeTrackRecord200 = {
+  graded: number;
+  hits: number;
+  misses: number;
+  pushes: number;
+  dnp: number;
+  pending: number;
+  message: string;
 };

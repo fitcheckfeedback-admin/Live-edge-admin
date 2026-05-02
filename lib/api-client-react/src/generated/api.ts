@@ -30,10 +30,13 @@ import type {
   GetResultsParams,
   GetScheduleToday200,
   GetScheduleTodayParams,
+  GetTrackRecordParams,
+  GradeTrackRecord200,
   HealthStatus,
   PatchResultBody,
   RefreshData200,
   Result,
+  TrackRecord,
 } from "./api.schemas";
 
 import { customFetch } from "../custom-fetch";
@@ -1125,3 +1128,178 @@ export function useGetDashboardSummary<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * @summary Auto-graded pick performance — overall, by sport/prop/tier
+ */
+export const getGetTrackRecordUrl = (params?: GetTrackRecordParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/track-record?${stringifiedParams}`
+    : `/api/track-record`;
+};
+
+export const getTrackRecord = async (
+  params?: GetTrackRecordParams,
+  options?: RequestInit,
+): Promise<TrackRecord> => {
+  return customFetch<TrackRecord>(getGetTrackRecordUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetTrackRecordQueryKey = (params?: GetTrackRecordParams) => {
+  return [`/api/track-record`, ...(params ? [params] : [])] as const;
+};
+
+export const getGetTrackRecordQueryOptions = <
+  TData = Awaited<ReturnType<typeof getTrackRecord>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetTrackRecordParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getTrackRecord>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetTrackRecordQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getTrackRecord>>> = ({
+    signal,
+  }) => getTrackRecord(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getTrackRecord>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetTrackRecordQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getTrackRecord>>
+>;
+export type GetTrackRecordQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Auto-graded pick performance — overall, by sport/prop/tier
+ */
+
+export function useGetTrackRecord<
+  TData = Awaited<ReturnType<typeof getTrackRecord>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetTrackRecordParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getTrackRecord>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetTrackRecordQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Manually trigger grading of pending snapshots
+ */
+export const getGradeTrackRecordUrl = () => {
+  return `/api/track-record/grade`;
+};
+
+export const gradeTrackRecord = async (
+  options?: RequestInit,
+): Promise<GradeTrackRecord200> => {
+  return customFetch<GradeTrackRecord200>(getGradeTrackRecordUrl(), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getGradeTrackRecordMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof gradeTrackRecord>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof gradeTrackRecord>>,
+  TError,
+  void,
+  TContext
+> => {
+  const mutationKey = ["gradeTrackRecord"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof gradeTrackRecord>>,
+    void
+  > = () => {
+    return gradeTrackRecord(requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type GradeTrackRecordMutationResult = NonNullable<
+  Awaited<ReturnType<typeof gradeTrackRecord>>
+>;
+
+export type GradeTrackRecordMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Manually trigger grading of pending snapshots
+ */
+export const useGradeTrackRecord = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof gradeTrackRecord>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof gradeTrackRecord>>,
+  TError,
+  void,
+  TContext
+> => {
+  return useMutation(getGradeTrackRecordMutationOptions(options));
+};

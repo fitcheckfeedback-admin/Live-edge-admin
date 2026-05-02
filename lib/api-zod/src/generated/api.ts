@@ -480,3 +480,112 @@ export const GetDashboardSummaryResponse = zod.object({
     })
     .optional(),
 });
+
+/**
+ * @summary Auto-graded pick performance — overall, by sport/prop/tier
+ */
+export const GetTrackRecordQueryParams = zod.object({
+  window: zod.enum(["7d", "30d", "all"]).optional(),
+});
+
+export const GetTrackRecordResponse = zod.object({
+  window: zod.string(),
+  overall: zod.object({
+    label: zod.string(),
+    graded: zod.number(),
+    hits: zod.number(),
+    misses: zod.number(),
+    pushes: zod.number(),
+    dnp: zod.number(),
+    pending: zod.number(),
+    hitRate: zod.number().describe("0-100"),
+  }),
+  bestPicks: zod.object({
+    label: zod.string(),
+    graded: zod.number(),
+    hits: zod.number(),
+    misses: zod.number(),
+    pushes: zod.number(),
+    dnp: zod.number(),
+    pending: zod.number(),
+    hitRate: zod.number().describe("0-100"),
+  }),
+  otherPicks: zod.object({
+    label: zod.string(),
+    graded: zod.number(),
+    hits: zod.number(),
+    misses: zod.number(),
+    pushes: zod.number(),
+    dnp: zod.number(),
+    pending: zod.number(),
+    hitRate: zod.number().describe("0-100"),
+  }),
+  bySport: zod.array(
+    zod.object({
+      label: zod.string(),
+      graded: zod.number(),
+      hits: zod.number(),
+      misses: zod.number(),
+      pushes: zod.number(),
+      dnp: zod.number(),
+      pending: zod.number(),
+      hitRate: zod.number().describe("0-100"),
+    }),
+  ),
+  byTier: zod.array(
+    zod.object({
+      label: zod.string(),
+      graded: zod.number(),
+      hits: zod.number(),
+      misses: zod.number(),
+      pushes: zod.number(),
+      dnp: zod.number(),
+      pending: zod.number(),
+      hitRate: zod.number().describe("0-100"),
+    }),
+  ),
+  byPropType: zod.array(
+    zod.object({
+      label: zod.string(),
+      graded: zod.number(),
+      hits: zod.number(),
+      misses: zod.number(),
+      pushes: zod.number(),
+      dnp: zod.number(),
+      pending: zod.number(),
+      hitRate: zod.number().describe("0-100"),
+    }),
+  ),
+  recent: zod.array(
+    zod.object({
+      id: zod.number(),
+      date: zod.string(),
+      sport: zod.string(),
+      playerName: zod.string(),
+      teamAbbr: zod.string(),
+      opponentAbbr: zod.string(),
+      propType: zod.string(),
+      line: zod.number(),
+      side: zod.enum(["Over", "Under"]),
+      winProbability: zod.number(),
+      edgeScore: zod.number(),
+      isBestPick: zod.boolean(),
+      bestPickTier: zod.number().optional(),
+      actualValue: zod.number().optional(),
+      result: zod.enum(["PENDING", "HIT", "MISS", "PUSH", "DNP"]),
+    }),
+  ),
+});
+
+/**
+ * @summary Manually trigger grading of pending snapshots
+ */
+export const GradeTrackRecordResponse = zod.object({
+  graded: zod.number(),
+  hits: zod.number(),
+  misses: zod.number(),
+  pushes: zod.number(),
+  dnp: zod.number(),
+  pending: zod.number(),
+  message: zod.string(),
+});
