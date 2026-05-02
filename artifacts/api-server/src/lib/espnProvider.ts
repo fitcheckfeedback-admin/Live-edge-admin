@@ -3,6 +3,10 @@ import type { Game } from "./types";
 
 const ESPN_BASE = "https://site.api.espn.com/apis/site/v2/sports";
 
+// Sports we actively support for game schedules AND prop generation. We do NOT
+// include NFL in May (off-season) and we do NOT include NHL because we lack a
+// curated star list — generating "NHL props" for unknown players would violate
+// our honesty principle. Add NHL here only after star data exists.
 function getActiveSports(): { sport: string; league: string; label: string }[] {
   const month = new Date().getMonth() + 1; // 1-12
   const active: { sport: string; league: string; label: string }[] = [];
@@ -10,8 +14,6 @@ function getActiveSports(): { sport: string; league: string; label: string }[] {
   if (month >= 10 || month <= 6) active.push({ sport: "basketball", league: "nba", label: "NBA" });
   // MLB: April–October
   if (month >= 4 && month <= 10) active.push({ sport: "baseball", league: "mlb", label: "MLB" });
-  // NFL: September–February
-  if (month >= 9 || month <= 2) active.push({ sport: "football", league: "nfl", label: "NFL" });
   return active;
 }
 
@@ -40,13 +42,6 @@ function formatPeriod(sport: string, period: string, status: string): string {
   if (sport === "mlb") {
     const half = d.includes("bottom") ? "Bot" : "Top";
     return `${half} ${period}`;
-  }
-  if (sport === "nfl") {
-    const n = Number(period);
-    if (n === 1) return "1st Qtr";
-    if (n === 2) return "2nd Qtr";
-    if (n === 3) return "3rd Qtr";
-    if (n === 4) return "4th Qtr";
   }
   return period;
 }

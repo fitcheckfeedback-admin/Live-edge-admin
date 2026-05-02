@@ -1,4 +1,5 @@
 import { EdgeBadge } from "@/components/EdgeBadge";
+import { WinProbBadge } from "@/components/WinProbBadge";
 
 function StatCard({ label, value, className }: { label: string; value: string | number; className?: string }) {
   return (
@@ -87,7 +88,10 @@ export default function OverviewTab({ summary, isLoading }: { summary: any; isLo
                 <span className="text-xs text-muted-foreground">{top.teamAbbr} vs {top.opponentAbbr}</span>
               </div>
             </div>
-            <div className="text-right shrink-0 space-y-2">
+            <div className="text-right shrink-0 space-y-2 flex flex-col items-end">
+              {typeof top.winProbability === "number" && (
+                <WinProbBadge probability={top.winProbability} size="lg" />
+              )}
               <EdgeBadge score={top.edgeScore} />
               <p className={`text-sm font-bold ${top.recommendation.includes("Over") ? "text-emerald-400" : top.recommendation.includes("Under") ? "text-red-400" : "text-muted-foreground"}`}>
                 {top.recommendation}

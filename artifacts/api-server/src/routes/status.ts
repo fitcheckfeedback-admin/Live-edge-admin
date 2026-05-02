@@ -63,7 +63,7 @@ async function syncAlerts() {
       newAlerts.push({
         type: "strong_pregame",
         title: "Strong Edge Alert",
-        message: `${p.playerName} ${p.propType} ${p.recommendation.includes("Over") ? "OVER" : "UNDER"} ${p.line} — Edge Score ${p.edgeScore}. ${p.teamAbbr} vs ${p.opponentAbbr}.`,
+        message: `${p.playerName} ${p.propType} ${p.recommendation.includes("Over") ? "OVER" : "UNDER"} ${p.line} — ${p.winProbability}% win probability. ${p.teamAbbr} vs ${p.opponentAbbr}.`,
         sport: p.sport,
         playerName: p.playerName,
         edgeScore: p.edgeScore,

@@ -97,6 +97,8 @@ export interface PlayerProp {
   consistency?: number;
   trend?: PlayerPropTrend;
   edgeScore: number;
+  /** Model's estimated probability (0-100) that the recommended side hits. */
+  winProbability: number;
   confidence?: PlayerPropConfidence;
   recommendation: PlayerPropRecommendation;
   action: PlayerPropAction;
@@ -104,6 +106,10 @@ export interface PlayerProp {
   redFlags?: string[];
   riskWarning?: string;
   gameId?: string;
+  /** Human-readable matchup label (e.g. "LAL @ DEN" or "NYY @ BOS") */
+  gameLabel?: string;
+  /** ISO timestamp of game start. */
+  gameStartTime?: string;
   createdAt?: string;
 }
 
@@ -255,7 +261,6 @@ export type GetScheduleTodaySport =
 export const GetScheduleTodaySport = {
   NBA: "NBA",
   MLB: "MLB",
-  NFL: "NFL",
   ALL: "ALL",
 } as const;
 
@@ -280,7 +285,6 @@ export type GetBestPropsSport =
 export const GetBestPropsSport = {
   NBA: "NBA",
   MLB: "MLB",
-  NFL: "NFL",
   ALL: "ALL",
 } as const;
 

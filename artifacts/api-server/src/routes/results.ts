@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { GetResultsQueryParams, UpdateResultParams, UpdateResultBody } from "@workspace/api-zod";
 import { db, resultsTable } from "@workspace/db";
 import { eq, desc } from "drizzle-orm";
+import { getActiveLeagues } from "../lib/espnProvider";
 
 const router: IRouter = Router();
 
@@ -30,7 +31,11 @@ router.get("/results", async (req, res) => {
   const sport = query.success ? query.data.sport : undefined;
   const status = query.success ? query.data.status : undefined;
 
+  // Only show results for currently-active sports — historic NFL etc. stays
+  // in the DB but is hidden from the UI to honor "only current games" rule.
+  const activeLeagues = new Set(getActiveLeagues());
   let rows = await db.select().from(resultsTable).orderBy(desc(resultsTable.createdAt));
+  rows = rows.filter((r) => activeLeagues.has(r.sport));
   if (sport) rows = rows.filter((r) => r.sport === sport);
   if (status) rows = rows.filter((r) => r.status === status);
 

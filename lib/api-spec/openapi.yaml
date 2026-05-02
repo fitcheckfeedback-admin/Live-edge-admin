@@ -48,7 +48,7 @@ paths:
           required: false
           schema:
             type: string
-            enum: [NBA, MLB, NFL, ALL]
+            enum: [NBA, MLB, ALL]
       responses:
         "200":
           description: Today's games
@@ -97,7 +97,7 @@ paths:
           required: false
           schema:
             type: string
-            enum: [NBA, MLB, NFL, ALL]
+            enum: [NBA, MLB, ALL]
         - name: minEdge
           in: query
           required: false
@@ -401,6 +401,9 @@ components:
           enum: [up, down, flat]
         edgeScore:
           type: number
+        winProbability:
+          type: number
+          description: Model's estimated probability (0-100) that the recommended side hits.
         confidence:
           type: string
           enum: [High, Medium, Low]
@@ -420,9 +423,15 @@ components:
           type: string
         gameId:
           type: string
+        gameLabel:
+          type: string
+          description: Human-readable matchup label (e.g. "LAL @ DEN" or "NYY @ BOS")
+        gameStartTime:
+          type: string
+          description: ISO timestamp of game start.
         createdAt:
           type: string
-      required: [id, sport, playerName, teamAbbr, opponentAbbr, propType, line, edgeScore, recommendation, action]
+      required: [id, sport, playerName, teamAbbr, opponentAbbr, propType, line, edgeScore, winProbability, recommendation, action]
 
     LiveEdge:
       type: object

@@ -24,10 +24,14 @@ A sports betting research dashboard with:
 - Real-time game data fetched directly from ESPN public APIs (scoreboard + rosters), season-aware (no NFL during off-season)
 - Player props algorithmically generated for actual rostered players using a curated star list (`lib/starPlayers.ts`) + line-bias model — see Honesty section below
 - Edge scoring (1-10 scale) drives Strong Play / Lean / Avoid / Trap Line classification
+- **Win Probability (%):** primary user-facing metric — model's belief that the recommended side hits, anchored on `hitRate10`, dampened by consistency, trend-nudged ±3, clamped 30–88
+- **My Picks bet slip:** client-side only, persisted in `localStorage` (key `live-edge-bet-slip-v1`) via `BetSlipProvider` in `src/lib/betSlip.tsx`. Tap any pick card in Best Picks to add/remove
+- PrizePicks-style Best Picks UI: sport pills → game grouping (by `gameId`, doubleheader-safe) → cards sorted by win probability desc, with More/Less side pills
 - Live in-game projections (only populates when games are actually live)
 - Alerts auto-generated from Strong Plays + Trap Lines
 - Results tracker with CSV export
 - Data Sources tab shows provider status with full transparency
+- **Active sports gating:** `getActiveLeagues()` (espnProvider) is the single source of truth for which sports are in season — props/results/alerts routes all filter by it, so stale rows in prod from out-of-season sports (e.g. NFL in May) are hidden from the UI without destructive DB ops
 
 ### Honesty / data-source policy
 **PrizePicks and Underdog do NOT publish public APIs.** Their projection endpoints

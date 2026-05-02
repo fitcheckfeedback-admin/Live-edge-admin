@@ -12,6 +12,5 @@ export type GetScheduleTodaySport =
 export const GetScheduleTodaySport = {
   NBA: "NBA",
   MLB: "MLB",
-  NFL: "NFL",
   ALL: "ALL",
 } as const;

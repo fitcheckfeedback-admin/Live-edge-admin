@@ -18,7 +18,7 @@ export const HealthCheckResponse = zod.object({
  * @summary Get today's games
  */
 export const GetScheduleTodayQueryParams = zod.object({
-  sport: zod.enum(["NBA", "MLB", "NFL", "ALL"]).optional(),
+  sport: zod.enum(["NBA", "MLB", "ALL"]).optional(),
 });
 
 export const GetScheduleTodayResponse = zod.object({
@@ -90,7 +90,7 @@ export const GetLiveScoresResponse = zod.object({
  * @summary Get best player props sorted by edge score
  */
 export const GetBestPropsQueryParams = zod.object({
-  sport: zod.enum(["NBA", "MLB", "NFL", "ALL"]).optional(),
+  sport: zod.enum(["NBA", "MLB", "ALL"]).optional(),
   minEdge: zod.coerce.number().optional(),
 });
 
@@ -115,6 +115,11 @@ export const GetBestPropsResponse = zod.object({
       consistency: zod.number().optional(),
       trend: zod.enum(["up", "down", "flat"]).optional(),
       edgeScore: zod.number(),
+      winProbability: zod
+        .number()
+        .describe(
+          "Model's estimated probability (0-100) that the recommended side hits.",
+        ),
       confidence: zod.enum(["High", "Medium", "Low"]).optional(),
       recommendation: zod.enum([
         "Strong Over",
@@ -128,6 +133,16 @@ export const GetBestPropsResponse = zod.object({
       redFlags: zod.array(zod.string()).optional(),
       riskWarning: zod.string().optional(),
       gameId: zod.string().optional(),
+      gameLabel: zod
+        .string()
+        .optional()
+        .describe(
+          'Human-readable matchup label (e.g. \"LAL @ DEN\" or \"NYY @ BOS\")',
+        ),
+      gameStartTime: zod
+        .string()
+        .optional()
+        .describe("ISO timestamp of game start."),
       createdAt: zod.string().optional(),
     }),
   ),
@@ -345,6 +360,11 @@ export const GetDashboardSummaryResponse = zod.object({
       consistency: zod.number().optional(),
       trend: zod.enum(["up", "down", "flat"]).optional(),
       edgeScore: zod.number(),
+      winProbability: zod
+        .number()
+        .describe(
+          "Model's estimated probability (0-100) that the recommended side hits.",
+        ),
       confidence: zod.enum(["High", "Medium", "Low"]).optional(),
       recommendation: zod.enum([
         "Strong Over",
@@ -358,6 +378,16 @@ export const GetDashboardSummaryResponse = zod.object({
       redFlags: zod.array(zod.string()).optional(),
       riskWarning: zod.string().optional(),
       gameId: zod.string().optional(),
+      gameLabel: zod
+        .string()
+        .optional()
+        .describe(
+          'Human-readable matchup label (e.g. \"LAL @ DEN\" or \"NYY @ BOS\")',
+        ),
+      gameStartTime: zod
+        .string()
+        .optional()
+        .describe("ISO timestamp of game start."),
       createdAt: zod.string().optional(),
     })
     .optional(),

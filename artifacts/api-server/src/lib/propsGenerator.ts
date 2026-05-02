@@ -8,13 +8,11 @@ const ESPN_BASE = "https://site.api.espn.com/apis/site/v2/sports";
 const SPORT_TO_PATH: Record<string, { sport: string; league: string }> = {
   NBA: { sport: "basketball", league: "nba" },
   MLB: { sport: "baseball", league: "mlb" },
-  NFL: { sport: "football", league: "nfl" },
 };
 
 const HEADSHOT: Record<string, (id: string) => string> = {
   NBA: (id) => `https://a.espncdn.com/i/headshots/nba/players/full/${id}.png`,
   MLB: (id) => `https://a.espncdn.com/i/headshots/mlb/players/full/${id}.png`,
-  NFL: (id) => `https://a.espncdn.com/i/headshots/nfl/players/full/${id}.png`,
 };
 
 interface RosterPlayer {
@@ -286,6 +284,18 @@ function buildProp(
   edgeScore = Math.round(edgeScore * 10) / 10;
 
   const isOver = lineGap > 0;
+
+  // Win probability — model's belief that the recommended side hits.
+  // Anchored on hitRate10 (already factors in lineGap), then dampened toward
+  // 50% when consistency is low (less trustworthy signal). Stays inside a
+  // realistic 30–88% band so we never imply certainty we don't have.
+  const sideHitRate = isOver ? hitRate10 : 1 - hitRate10;
+  const consistencyWeight = 0.5 + consistency * 0.5; // 0.7 → 0.975
+  let winProbabilityRaw = 50 + (sideHitRate * 100 - 50) * consistencyWeight;
+  // Trend agreement nudges ±3 pts
+  if ((trend === "up" && isOver) || (trend === "down" && !isOver)) winProbabilityRaw += 3;
+  if ((trend === "down" && isOver) || (trend === "up" && !isOver)) winProbabilityRaw -= 3;
+  const winProbability = Math.round(Math.min(88, Math.max(30, winProbabilityRaw)));
   let recommendation: PlayerProp["recommendation"];
   let action: PlayerProp["action"];
   if (edgeScore >= 8 && isOver) { recommendation = "Strong Over"; action = "Strong Play"; }
@@ -342,6 +352,7 @@ function buildProp(
     consistency: Math.round(consistency * 100) / 100,
     trend,
     edgeScore,
+    winProbability,
     confidence,
     recommendation,
     action,
@@ -349,6 +360,8 @@ function buildProp(
     redFlags,
     riskWarning,
     gameId: game.id,
+    gameLabel: `${game.awayTeam.abbreviation} @ ${game.homeTeam.abbreviation}`,
+    gameStartTime: game.startTime,
     createdAt: new Date().toISOString(),
   };
 }

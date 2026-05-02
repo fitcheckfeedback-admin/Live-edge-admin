@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { GetAlertsQueryParams, MarkAlertReadParams } from "@workspace/api-zod";
 import { db, alertsTable } from "@workspace/db";
 import { eq, desc } from "drizzle-orm";
+import { getActiveLeagues } from "../lib/espnProvider";
 
 const router: IRouter = Router();
 
@@ -9,7 +10,10 @@ router.get("/alerts", async (req, res) => {
   const query = GetAlertsQueryParams.safeParse(req.query);
   const unreadOnly = query.success ? query.data.unreadOnly : false;
 
+  // Hide alerts for sports not currently active (e.g. NFL alerts in May).
+  const activeLeagues = new Set(getActiveLeagues());
   let rows = await db.select().from(alertsTable).orderBy(desc(alertsTable.createdAt));
+  rows = rows.filter((a) => !a.sport || activeLeagues.has(a.sport));
   if (unreadOnly) rows = rows.filter((a) => !a.isRead);
 
   const unreadCount = rows.filter((a) => !a.isRead).length;

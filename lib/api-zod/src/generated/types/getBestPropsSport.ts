@@ -12,6 +12,5 @@ export type GetBestPropsSport =
 export const GetBestPropsSport = {
   NBA: "NBA",
   MLB: "MLB",
-  NFL: "NFL",
   ALL: "ALL",
 } as const;

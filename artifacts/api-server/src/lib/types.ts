@@ -39,6 +39,7 @@ export interface PlayerProp {
   consistency: number;
   trend: "up" | "down" | "flat";
   edgeScore: number;
+  winProbability: number;
   confidence: "High" | "Medium" | "Low";
   recommendation: "Strong Over" | "Lean Over" | "Avoid" | "Lean Under" | "Strong Under";
   action: "Strong Play" | "Lean" | "Avoid" | "Trap Line";
@@ -46,6 +47,8 @@ export interface PlayerProp {
   redFlags: string[];
   riskWarning: string;
   gameId?: string;
+  gameLabel?: string;
+  gameStartTime?: string;
   createdAt?: string;
 }
 
