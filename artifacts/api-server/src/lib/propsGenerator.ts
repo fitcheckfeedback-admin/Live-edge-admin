@@ -124,6 +124,12 @@ const ROSTER_TTL = 30 * 60 * 1000;
 
 let propsCache: { ts: number; props: PlayerProp[] } | null = null;
 const PROPS_TTL = 60 * 1000;
+// When upstream (ESPN) fails, we'd rather show 30-min-stale player data than
+// an empty page. PROPS_STALE_MAX is the upper bound on how stale a fallback
+// cache may be served. After this it returns []. The deployed app was hitting
+// this exact failure mode after every redeploy: cold container → ESPN times
+// out → empty cache → user sees "no players" until ESPN recovers.
+const PROPS_STALE_MAX = 45 * 60 * 1000;
 
 // ── Math helpers ───────────────────────────────────────────────────────────
 function mean(arr: number[]): number {
@@ -953,13 +959,22 @@ export async function getTodayProps(sport?: string): Promise<PlayerProp[]> {
   const eligible = games.filter((g) => g.homeTeam.id && g.awayTeam.id);
 
   // CRITICAL: when ESPN times out (source==="error") we get back an empty
-  // games list. Do NOT cache that — otherwise every request for the next
-  // PROPS_TTL window returns an empty player list, which is what the user
-  // saw as "no players showing" in production after a cold-start timeout.
-  // We return [] this call so the route doesn't hang, but next request will
-  // retry from upstream instead of serving a stale empty cache.
+  // games list. Do NOT overwrite a healthy cache with that empty result.
+  // - If we have a recent-enough cache (<= PROPS_STALE_MAX), serve it stale
+  //   so the user keeps seeing real player stats during transient outages.
+  // - Otherwise return [] without caching so the very next request retries
+  //   upstream instead of serving an empty cache for PROPS_TTL.
   if (source === "error" && eligible.length === 0) {
-    logger.warn("ESPN scoreboard failed; returning empty props without caching so next request retries");
+    if (propsCache && Date.now() - propsCache.ts < PROPS_STALE_MAX) {
+      const ageMin = Math.round((Date.now() - propsCache.ts) / 60_000);
+      logger.warn(
+        { ageMin, count: propsCache.props.length },
+        "ESPN scoreboard failed; serving stale propsCache instead of empty",
+      );
+      const all = propsCache.props;
+      return sport && sport !== "ALL" ? all.filter((p) => p.sport === sport) : all;
+    }
+    logger.warn("ESPN scoreboard failed and no usable cache; returning empty props without caching so next request retries");
     return [];
   }
 

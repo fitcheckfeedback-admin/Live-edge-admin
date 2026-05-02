@@ -73,11 +73,35 @@ function formatPeriod(sport: string, period: string, status: string): string {
 
 async function fetchScoreboard(sport: string, league: string, date?: string): Promise<Game[]> {
   const url = `${ESPN_BASE}/${sport}/${league}/scoreboard${date ? `?dates=${date}` : ""}`;
-  // 12s timeout — production cold starts have higher network latency to ESPN
-  // than the dev container (was 5s, which caused empty seeds in deployment).
-  const resp = await fetch(url, { signal: AbortSignal.timeout(12000) });
-  if (!resp.ok) throw new Error(`ESPN ${sport}/${league} returned ${resp.status}`);
-  const json = await resp.json() as any;
+  // ESPN's edge occasionally drops the first request from a cold container in
+  // production (we saw repeated TimeoutError in deployment logs that wiped the
+  // entire player list). One quick retry with a backoff converts most of those
+  // transient failures into success without doubling latency on the happy path.
+  // Per-attempt 10s, total worst case ~21s, which is still well under any UI
+  // hard timeout and far better than serving an empty page.
+  const attempts: { timeoutMs: number; delayBeforeMs: number }[] = [
+    { timeoutMs: 10_000, delayBeforeMs: 0 },
+    { timeoutMs: 10_000, delayBeforeMs: 800 },
+  ];
+  let lastErr: unknown;
+  for (const a of attempts) {
+    if (a.delayBeforeMs) await new Promise((r) => setTimeout(r, a.delayBeforeMs));
+    try {
+      const resp = await fetch(url, { signal: AbortSignal.timeout(a.timeoutMs) });
+      if (!resp.ok) throw new Error(`ESPN ${sport}/${league} returned ${resp.status}`);
+      const json = await resp.json() as any;
+      return parseScoreboard(json, league);
+    } catch (err) {
+      lastErr = err;
+      // Only retry on timeout / network errors, not on 4xx
+      const msg = String(err);
+      if (msg.includes(" returned 4")) break;
+    }
+  }
+  throw lastErr instanceof Error ? lastErr : new Error(String(lastErr));
+}
+
+function parseScoreboard(json: any, league: string): Game[] {
   const events: any[] = json?.events ?? [];
   return events.map((ev: any): Game => {
     const comp = ev.competitions?.[0];
@@ -115,6 +139,7 @@ async function fetchScoreboard(sport: string, league: string, date?: string): Pr
     };
   });
 }
+
 
 export async function getTodayGames(
   sport?: string,

@@ -62,7 +62,8 @@ A sports betting research dashboard with:
 - Open-Meteo unreachable → weather factor is null, not made up.
 - Fixed-roof dome (Tampa Bay) → weather marked as "Dome — no effect".
 - NBA per-team REB/AST/3PM allowed → factor reads "Neutral matchup vs X — ESPN does not expose a per-team '{prop} allowed' metric" rather than inventing one.
-- ESPN scoreboard failure → `getTodayGames()` returns `{ source: "error", error: ... }` instead of silently falling back to mock games.
+- ESPN scoreboard failure → `getTodayGames()` returns `{ source: "error", error: ... }` instead of silently falling back to mock games. `fetchScoreboard` itself retries once (10s × 2 attempts) before surfacing the error, since most production timeouts are transient cold-start hiccups.
+- ESPN cold-start safety net → `getTodayProps()` keeps a `propsCache` and on upstream failure will serve a cached result up to 45 min stale rather than empty. Fresh deploys still hit a brief no-data window if ESPN times out twice on the very first request, but warm containers stay populated through transient outages.
 
 ESPN, MLB Stats API, and Open-Meteo all have their live status surfaced in the Data Sources tab. The PrizePicks/Underdog/Odds API entries remain explicitly marked `mock` so users see what is and isn't real at a glance.
 
