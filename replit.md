@@ -21,7 +21,7 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
 
 ### Live Edge Engine (`/`)
 A sports betting research dashboard with:
-- Real-time game data fetched directly from ESPN public APIs (scoreboard + rosters), season-aware (no NFL during off-season)
+- Real-time game data fetched directly from ESPN public APIs (scoreboard + rosters), season-aware (no NFL during off-season). Schedule is anchored to the **ET sports-day** (not server UTC) and explicitly fetches today + tomorrow with `?dates=YYYYMMDD` so morning requests return today's actual upcoming slate instead of yesterday's finals. Games finished more than 6h ago are dropped server-side; the rest are sorted live → upcoming → recent finals. Game/score times render in the **user's local browser timezone** via `toLocaleTimeString([])`. Live scores poll every **15 seconds** in both the Games tab and the Picks tab.
 - **Player stats are 100% real public data** — see Honesty section below for sources and exact mappings
 - Edge scoring (1-10 scale) drives Strong Play / Lean / Avoid / Trap Line classification
 - **Win Probability (%):** primary user-facing metric — model's belief that the recommended side hits, anchored on real `hitRate10`, dampened by consistency, trend-nudged ±3, then nudged by real factor impacts (weather + opponent + H2H) at half weight, clamped 28–92

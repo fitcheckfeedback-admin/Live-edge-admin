@@ -7,8 +7,33 @@ const ESPN_BASE = "https://site.api.espn.com/apis/site/v2/sports";
 // include NFL in May (off-season) and we do NOT include NHL because we lack a
 // curated star list — generating "NHL props" for unknown players would violate
 // our honesty principle. Add NHL here only after star data exists.
+// Returns YYYYMMDD in America/New_York. US pro sports use ET as the canonical
+// "game day" boundary, so we anchor today's slate to ET regardless of where the
+// server runs. ESPN's scoreboard endpoint accepts ?dates=YYYYMMDD and returns
+// games scheduled for that calendar day, which is what we want — without a date
+// param, ESPN returns whatever it considers "current", which at 7 AM ET still
+// shows yesterday's finals because today's slate hasn't loaded yet.
+function dateInET(d: Date): string {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/New_York",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(d);
+  const y = parts.find((p) => p.type === "year")!.value;
+  const m = parts.find((p) => p.type === "month")!.value;
+  const day = parts.find((p) => p.type === "day")!.value;
+  return `${y}${m}${day}`;
+}
+function monthInET(d: Date): number {
+  return Number(
+    new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", month: "numeric" })
+      .format(d),
+  );
+}
+
 function getActiveSports(): { sport: string; league: string; label: string }[] {
-  const month = new Date().getMonth() + 1; // 1-12
+  const month = monthInET(new Date());
   const active: { sport: string; league: string; label: string }[] = [];
   // NBA: October–June (playoffs through June)
   if (month >= 10 || month <= 6) active.push({ sport: "basketball", league: "nba", label: "NBA" });
@@ -46,8 +71,8 @@ function formatPeriod(sport: string, period: string, status: string): string {
   return period;
 }
 
-async function fetchScoreboard(sport: string, league: string): Promise<Game[]> {
-  const url = `${ESPN_BASE}/${sport}/${league}/scoreboard`;
+async function fetchScoreboard(sport: string, league: string, date?: string): Promise<Game[]> {
+  const url = `${ESPN_BASE}/${sport}/${league}/scoreboard${date ? `?dates=${date}` : ""}`;
   const resp = await fetch(url, { signal: AbortSignal.timeout(5000) });
   if (!resp.ok) throw new Error(`ESPN ${sport}/${league} returned ${resp.status}`);
   const json = await resp.json() as any;
@@ -102,26 +127,65 @@ export async function getTodayGames(
     return { games: [], source: "off-season" };
   }
 
-  // Fetch each league independently so a single failure doesn't kill the whole response.
-  // We surface an error source if EVERY league failed; partial success degrades silently
-  // but the source still reads "espn" since we got real data.
-  const settled = await Promise.allSettled(
-    targets.map((t) => fetchScoreboard(t.sport, t.league)),
+  // Anchor "today" to the ET sports-day. We also fetch tomorrow (ET) so very-
+  // late West Coast games that start before midnight ET but cross over are
+  // still surfaced as upcoming. We dedupe by event id afterwards.
+  const now = new Date();
+  const todayEt = dateInET(now);
+  const tomorrowEt = dateInET(new Date(now.getTime() + 24 * 60 * 60 * 1000));
+
+  // Fetch each league × {today, tomorrow} independently so any single failure
+  // doesn't kill the whole response. We surface an error source only if EVERY
+  // league completely failed.
+  const jobs = targets.flatMap((t) =>
+    [todayEt, tomorrowEt].map((date) => ({ t, date })),
   );
+  const settled = await Promise.allSettled(
+    jobs.map((j) => fetchScoreboard(j.t.sport, j.t.league, j.date)),
+  );
+  const seen = new Set<string>();
   const games: Game[] = [];
-  const failures: string[] = [];
+  const failures = new Map<string, string>(); // league → last error
   settled.forEach((r, i) => {
-    const t = targets[i]!;
+    const job = jobs[i]!;
     if (r.status === "fulfilled") {
-      games.push(...r.value);
+      for (const g of r.value) {
+        if (g.id && !seen.has(g.id)) {
+          seen.add(g.id);
+          games.push(g);
+        }
+      }
     } else {
-      failures.push(`${t.label}: ${String(r.reason)}`);
-      logger.warn({ err: r.reason, league: t.label }, "ESPN scoreboard fetch failed");
+      failures.set(job.t.label, String(r.reason));
+      logger.warn({ err: r.reason, league: job.t.label, date: job.date }, "ESPN scoreboard fetch failed");
     }
   });
 
-  if (failures.length === targets.length) {
-    return { games: [], source: "error", error: failures.join("; ") };
+  // Hide games that finished more than 6 hours ago — they're truly stale and
+  // never useful to a user opening the app. Live and upcoming games always pass.
+  const cutoffMs = now.getTime() - 6 * 60 * 60 * 1000;
+  const filtered = games.filter((g) => {
+    if (g.isLive) return true;
+    if (g.status !== "final") return true;
+    const t = g.startTime ? new Date(g.startTime).getTime() : 0;
+    return t >= cutoffMs;
+  });
+
+  // Sort: live first, then by start time ascending (earliest upcoming first,
+  // then most-recent finals last).
+  filtered.sort((a, b) => {
+    if (a.isLive !== b.isLive) return a.isLive ? -1 : 1;
+    const ta = a.startTime ? new Date(a.startTime).getTime() : 0;
+    const tb = b.startTime ? new Date(b.startTime).getTime() : 0;
+    return ta - tb;
+  });
+
+  if (failures.size === targets.length) {
+    return { games: [], source: "error", error: Array.from(failures.values()).join("; ") };
   }
-  return { games, source: "espn", ...(failures.length ? { error: failures.join("; ") } : {}) };
+  return {
+    games: filtered,
+    source: "espn",
+    ...(failures.size ? { error: Array.from(failures.values()).join("; ") } : {}),
+  };
 }

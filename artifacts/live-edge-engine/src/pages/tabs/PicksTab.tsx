@@ -212,14 +212,34 @@ export default function PicksTab() {
     { query: { queryKey: ["/api/schedule/today", sportFilter] } },
   );
   const { data: liveData } = useGetLiveScores({
-    query: { queryKey: ["/api/scores/live"], refetchInterval: 30000 },
+    query: { queryKey: ["/api/scores/live"], refetchInterval: 15000 },
   });
 
+  // Merge live data into schedule, then keep only games that haven't ended yet
+  // (live + upcoming). Sort: live first, then upcoming by start time ascending.
   const games = useMemo(() => {
     const baseGames = scheduleData?.games ?? [];
     const liveMap = new Map((liveData?.games ?? []).map((g) => [g.id, g]));
-    return baseGames.map((g) => liveMap.get(g.id) ?? g);
+    const merged = baseGames.map((g) => liveMap.get(g.id) ?? g);
+    return merged
+      .filter((g) => g.isLive || g.status !== "final")
+      .sort((a, b) => {
+        if (a.isLive !== b.isLive) return a.isLive ? -1 : 1;
+        const ta = a.startTime ? new Date(a.startTime).getTime() : 0;
+        const tb = b.startTime ? new Date(b.startTime).getTime() : 0;
+        return ta - tb;
+      });
   }, [scheduleData, liveData]);
+
+  // Local "Today" label that respects the user's timezone
+  const todayLabel = useMemo(
+    () => new Date().toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" }),
+    [],
+  );
+  const tzAbbr = useMemo(() => {
+    const parts = new Intl.DateTimeFormat([], { timeZoneName: "short" }).formatToParts(new Date());
+    return parts.find((p) => p.type === "timeZoneName")?.value ?? "";
+  }, []);
 
   function handleSportChange(s: SportFilter) {
     setSportFilter(s);
@@ -359,8 +379,13 @@ export default function PicksTab() {
         games.length > 0 && (
           <div>
             <div className="flex items-center justify-between mb-2 px-1">
-              <h2 className="text-sm font-bold text-white uppercase tracking-wider">Featured Games</h2>
-              <span className="text-[10px] text-muted-foreground">Tap a game to filter players</span>
+              <h2 className="text-sm font-bold text-white uppercase tracking-wider">
+                Today's Games
+                <span className="ml-2 text-[10px] font-normal text-muted-foreground tracking-normal normal-case">
+                  · {todayLabel}{tzAbbr ? ` · times in ${tzAbbr}` : ""}
+                </span>
+              </h2>
+              <span className="text-[10px] text-muted-foreground">Tap to see both teams' players</span>
             </div>
             <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 snap-x">
               {games.map((g) => (
@@ -378,7 +403,9 @@ export default function PicksTab() {
         <div className="flex items-center gap-2 mb-3 px-1">
           <Flame className="w-4 h-4 text-primary" />
           <h2 className="text-sm font-bold text-white uppercase tracking-wider">
-            {selectedGameId ? "Players in this game" : "Today's Players"}
+            {selectedGameId
+              ? `Players from both teams · ${selectedGame?.awayTeam.abbreviation} @ ${selectedGame?.homeTeam.abbreviation}`
+              : "Today's Players"}
           </h2>
           <span className="text-[11px] text-muted-foreground hidden sm:inline">— tap any player for full stat board</span>
         </div>
