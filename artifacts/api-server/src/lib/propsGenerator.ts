@@ -137,8 +137,14 @@ function stdev(arr: number[]): number {
   return Math.sqrt(arr.reduce((s, v) => s + (v - m) ** 2, 0) / arr.length);
 }
 
-function roundLine(value: number, step = 0.5): number {
-  return Math.round(value / step) * step;
+// Always snap the model line to a HALF-integer (X.5). Two reasons:
+//   1. Integer-valued props (hits, strikeouts, home runs) can never "push"
+//      when the line ends in .5, which matches how real sportsbooks set them.
+//   2. Rounding around the player's true rolling average produces a natural
+//      ~50/50 Over/Under split — letting recent form (avg5) decide the side
+//      instead of baking in a directional bias.
+function roundLine(value: number): number {
+  return Math.round(value - 0.5) + 0.5;
 }
 
 async function batchedMap<T, R>(items: T[], batchSize: number, fn: (item: T) => Promise<R>): Promise<R[]> {
@@ -491,13 +497,21 @@ function buildPropFromRealData(input: PropInputs): PlayerProp | null {
   const avg5 = mean(last5);
   const sd = Math.max(0.5, stdev(last10));
 
-  // Skip if player has effectively zero production in this category over a meaningful sample
-  if (last10.length >= 5 && avg10 < 0.05 && Math.max(...last10) === 0) return null;
+  // Skip props where the player has effectively no production in this category.
+  // A player who attempts a stolen base once every 10 games doesn't have a
+  // meaningful "Stolen Bases" prop — surfacing "Under 0.5 at 92%" for him is
+  // mathematically true but useless to a bettor. We require at least a small
+  // amount of production (avg10 >= 0.2) AND that the player has done it at
+  // least once in the sample, otherwise we drop the prop entirely.
+  if (last10.length >= 5) {
+    if (avg10 < 0.2) return null;
+    if (Math.max(...last10) === 0) return null;
+  }
 
-  // Model line: roll the rolling average to the nearest 0.5, with tiny randomization
-  // anchored to the player+game so the same prop is stable across requests.
-  const lineRaw = avg10 * 0.95 + 0.25; // slight under-bias mimics typical book lines
-  const line = Math.max(0.5, roundLine(lineRaw));
+  // Model line: anchor on the rolling-10 average and snap to nearest half-integer.
+  // No over/under bias is baked in — recent form (avg5 vs line) decides the side,
+  // which produces a natural mix of Over and Under recommendations.
+  const line = Math.max(0.5, roundLine(avg10));
 
   const hits10 = last10.filter((v) => v > line).length;
   const hits5 = last5.filter((v) => v > line).length;
@@ -656,9 +670,10 @@ async function processMlbGame(
         .filter((g) => g.opponentId === ctx.opponentMlbId)
         .slice(-10)
         .map((g) => extractHittingValue(g.stat, prop));
-      // We need the line BEFORE building factors; precompute a tentative line from avg10:
+      // We need the line BEFORE building factors; precompute a tentative line from avg10.
+      // Must match the formula used inside buildPropFromRealData so factors point the right way.
       const tentativeAvg10 = mean(values.slice(-10));
-      const tentativeLine = Math.max(0.5, roundLine(tentativeAvg10 * 0.95 + 0.25));
+      const tentativeLine = Math.max(0.5, roundLine(tentativeAvg10));
       const isOverTentative = (mean(values.slice(-5)) - tentativeLine) >= 0;
       const opponentFactor = buildMlbOpponentFactor(prop, ctx.opponentAbbr, ctx.opponentMlbId, isOverTentative, teamPitchingStats);
       const weatherFactor = ctx.isHome
@@ -684,9 +699,7 @@ async function processMlbGame(
       if (built) playerProps.push(built);
     }
     if (playerProps.length > 0) {
-      let best = playerProps[0]!;
-      for (const p of playerProps) if (p.winProbability > best.winProbability) best = p;
-      best.bestPick = true;
+      pickBestProp(playerProps).bestPick = true;
       props.push(...playerProps);
     }
   });
@@ -708,7 +721,7 @@ async function processMlbGame(
       .filter((g) => g.opponentId === ctx.opponentMlbId)
       .slice(-10)
       .map((g) => extractPitchingValue(g.stat, prop));
-    const tentativeLine = Math.max(0.5, roundLine(mean(values.slice(-10)) * 0.95 + 0.25));
+    const tentativeLine = Math.max(0.5, roundLine(mean(values.slice(-10))));
     const isOverTentative = (mean(values.slice(-5)) - tentativeLine) >= 0;
     // Pitcher's "opponent" defensively for K's: use opposing team's team-level
     // strikeOuts as hitters (more team K's = easier OVER for pitcher K). We have
@@ -790,7 +803,7 @@ async function processNbaGame(
         .filter((g) => g.opponentAbbr === ctx.oppAbbr)
         .slice(-10)
         .map((g) => extractNbaValue(g, prop));
-      const tentativeLine = Math.max(0.5, roundLine(mean(values.slice(-10)) * 0.95 + 0.25));
+      const tentativeLine = Math.max(0.5, roundLine(mean(values.slice(-10))));
       const isOverTentative = (mean(values.slice(-5)) - tentativeLine) >= 0;
       const opponentFactor = buildNbaOpponentFactor(prop, ctx.oppAbbr, ctx.oppTeamId, isOverTentative, paRanks);
       const h2hFactor = buildH2HFactor(h2hValues, tentativeLine, isOverTentative, ctx.oppAbbr);
@@ -813,14 +826,32 @@ async function processNbaGame(
       if (built) playerProps.push(built);
     }
     if (playerProps.length > 0) {
-      let best = playerProps[0]!;
-      for (const p of playerProps) if (p.winProbability > best.winProbability) best = p;
-      best.bestPick = true;
+      pickBestProp(playerProps).bestPick = true;
       props.push(...playerProps);
     }
   });
 
   return props;
+}
+
+// Choose the most ACTIONABLE prop for a player rather than the highest raw
+// winProb. A 95%-confident "Stolen Bases under 0.5" on a player who steals once
+// a month is mathematically true but useless. Real "edge" comes from props
+// with meaningful volume where recent form differs from the line. We tier the
+// candidates by edgeScore (model's gap-vs-volatility signal), and within each
+// tier we prefer higher winProb. This naturally surfaces a mix of Over and
+// Under best picks because real games produce both.
+function pickBestProp(props: PlayerProp[]): PlayerProp {
+  // Tier A: meaningful volume (line >= 1) AND clear edge (edgeScore >= 6)
+  const tierA = props.filter((p) => p.line >= 1 && p.edgeScore >= 6);
+  if (tierA.length) return tierA.reduce((b, p) => (p.winProbability > b.winProbability ? p : b));
+
+  // Tier B: meaningful volume (line >= 1), any edge — still real props
+  const tierB = props.filter((p) => p.line >= 1);
+  if (tierB.length) return tierB.reduce((b, p) => (p.winProbability > b.winProbability ? p : b));
+
+  // Tier C: fall back to whatever exists (low-volume props)
+  return props.reduce((b, p) => (p.winProbability > b.winProbability ? p : b));
 }
 
 // ── Public API ─────────────────────────────────────────────────────────────

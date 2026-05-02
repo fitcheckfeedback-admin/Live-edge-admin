@@ -126,8 +126,9 @@ function PlayerCard({
               isOver ? "bg-emerald-500/15 text-emerald-300 border-emerald-500/60"
                 : "bg-red-500/15 text-red-300 border-red-500/60",
             )}
+            data-testid={`badge-side-${group.playerId}`}
           >
-            {isOver ? "▲" : "▼"}
+            {isOver ? "▲ MORE" : "▼ LESS"}
           </span>
         </div>
 
@@ -279,10 +280,30 @@ export default function PicksTab() {
         group.bestProp = p;
       }
     }
-    // Sort players by their best prop's win probability descending
-    return Array.from(map.values()).sort(
-      (a, b) => (b.bestProp.winProbability ?? 0) - (a.bestProp.winProbability ?? 0),
-    );
+    // Interleave MORE (Over) and LESS (Under) picks so the user always sees a
+    // mix at the top of the board. We rank each side internally by win
+    // probability, then weave them together: best Over, best Under, 2nd Over,
+    // 2nd Under, … Without this the list skews heavily Under because
+    // low-volume "rare-event" Unders are mathematically more confident than
+    // common-event Overs.
+    const allGroups = Array.from(map.values());
+    const overs = allGroups
+      .filter((g) => g.bestProp.recommendation.includes("Over"))
+      .sort((a, b) => (b.bestProp.winProbability ?? 0) - (a.bestProp.winProbability ?? 0));
+    const unders = allGroups
+      .filter((g) => g.bestProp.recommendation.includes("Under"))
+      .sort((a, b) => (b.bestProp.winProbability ?? 0) - (a.bestProp.winProbability ?? 0));
+    const others = allGroups
+      .filter((g) => !g.bestProp.recommendation.includes("Over") && !g.bestProp.recommendation.includes("Under"))
+      .sort((a, b) => (b.bestProp.winProbability ?? 0) - (a.bestProp.winProbability ?? 0));
+    const interleaved: PlayerGroup[] = [];
+    const maxLen = Math.max(overs.length, unders.length);
+    for (let i = 0; i < maxLen; i++) {
+      if (overs[i]) interleaved.push(overs[i]!);
+      if (unders[i]) interleaved.push(unders[i]!);
+    }
+    interleaved.push(...others);
+    return interleaved;
   }, [propsData, selectedGameId]);
 
   const selectedGame = useMemo(
