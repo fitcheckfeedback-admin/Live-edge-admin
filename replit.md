@@ -34,6 +34,7 @@ A sports betting research dashboard with:
 - Results tracker with CSV export
 - Data Sources tab shows provider status with full transparency
 - **Active sports gating:** `getActiveLeagues()` (espnProvider) is the single source of truth for which sports are in season — props/results/alerts routes all filter by it, so stale rows in prod from out-of-season sports (e.g. NFL in May) are hidden from the UI without destructive DB ops
+- **The Lounge** — a global multi-user chat accessible from a floating button (bottom-right, above the bottom nav). Anonymous: identity is an opaque random sessionId stored in an `httpOnly` `chat_sid` cookie + a self-chosen display name in `localStorage`. Single global room, persisted to the `chat_messages` Postgres table. Client polls `/api/chat/messages?after=<lastId>` every 2.5s when open / 8s when closed; new messages from others increment an unread badge. Posts are validated server-side (name 2–20 chars, content ≤500 chars), rate-limited per-session (1500ms floor) and per-IP (800ms floor + 30/min cap, with size-cap eviction + 5min TTL), and CSRF-checked via Origin allowlist (same-host + `REPLIT_DOMAINS` + localhost). Files: `lib/db/src/schema/chat.ts`, `artifacts/api-server/src/routes/chat.ts`, `artifacts/live-edge-engine/src/components/Lounge.tsx`.
 
 ### Honesty / data-source policy
 
@@ -83,6 +84,9 @@ Express backend serving all API routes:
 - `GET /api/dashboard/summary` — overview stats
 - `GET /api/track-record?window=7d|30d|all` — rolling hit-rate stats (overall, best vs other, by sport, by tier, by prop type) and 50 most recent graded picks
 - `POST /api/track-record/grade` — manually run the grader (also runs in-process at startup + hourly)
+- `GET /api/chat/identity` — read or mint the anonymous `chat_sid` cookie (The Lounge)
+- `GET /api/chat/messages?after=<id>&limit=<n>` — chat history / poll for new messages
+- `POST /api/chat/messages` — post a chat message (`{ name, content }`); rate-limited + Origin-checked
 
 ### Track Record (auto-grading)
 Daily slate is snapshotted into `pick_snapshots` (one row per recommended Over/Under side) every time `getTodayProps()` runs. The grader:

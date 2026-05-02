@@ -8,6 +8,7 @@ import alertsRouter from "./alerts";
 import resultsRouter from "./results";
 import statusRouter from "./status";
 import trackRecordRouter from "./trackRecord";
+import chatRouter from "./chat";
 
 const router: IRouter = Router();
 
@@ -20,5 +21,6 @@ router.use(alertsRouter);
 router.use(resultsRouter);
 router.use(statusRouter);
 router.use(trackRecordRouter);
+router.use(chatRouter);
 
 export default router;
