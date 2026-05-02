@@ -292,32 +292,16 @@ export function PlayerDetailSheet({ open, onOpenChange, player, props }: PlayerD
           </SheetDescription>
         </VisuallyHidden.Root>
         {/*
-          Sticky close bar — lives at the TOP of the sheet as a real flex
-          row. Earlier iterations used a faint translucent X button that
-          users said they "couldn't see"; this version is a clearly-labeled
-          pill button with high contrast against the dark sheet background
-          plus a drag-handle bar that signals "swipeable sheet" by mobile
-          UI convention.
+          Top: just a slim drag-handle bar (iOS convention for swipeable
+          sheets). The actual close action lives at the BOTTOM in a sticky
+          footer where it's always thumb-reachable and never hidden behind
+          a phone notch / dynamic island.
         */}
         <div
-          className="flex items-center justify-between px-3 py-2 border-b border-border bg-card shrink-0 relative"
+          className="flex items-center justify-center py-2 border-b border-border bg-card shrink-0"
           style={{ paddingTop: "max(0.5rem, env(safe-area-inset-top))" }}
         >
-          {/* iOS-style drag handle (visual affordance only) */}
-          <div className="absolute left-1/2 -translate-x-1/2 top-1.5 w-10 h-1 rounded-full bg-white/20" />
-          <span className="text-[11px] uppercase tracking-widest font-bold text-muted-foreground pl-1">
-            Player Detail
-          </span>
-          <button
-            type="button"
-            onClick={() => onOpenChange(false)}
-            className="inline-flex items-center gap-1.5 h-10 px-3.5 rounded-full bg-white text-slate-900 font-bold text-sm shadow-md active:scale-95 transition-transform"
-            data-testid="button-close-sheet"
-            aria-label="Close"
-          >
-            <X className="w-4 h-4" strokeWidth={3} />
-            <span>Close</span>
-          </button>
+          <div className="w-10 h-1 rounded-full bg-white/25" aria-hidden="true" />
         </div>
 
         <div className="overflow-y-auto flex-1">
@@ -372,6 +356,28 @@ export function PlayerDetailSheet({ open, onOpenChange, player, props }: PlayerD
           </p>
           {sorted.map((p) => <CategoryRow key={p.id} prop={p} />)}
         </div>
+        </div>
+
+        {/*
+          Sticky footer close button — bottom of the sheet so it's always
+          visible, thumb-reachable, and never clipped by a notch / dynamic
+          island. Padding-bottom uses env(safe-area-inset-bottom) so the
+          button sits above the iOS home indicator instead of behind it.
+        */}
+        <div
+          className="border-t border-border bg-card shrink-0 px-4 pt-3"
+          style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
+        >
+          <button
+            type="button"
+            onClick={() => onOpenChange(false)}
+            className="w-full h-12 rounded-xl bg-white text-slate-900 font-bold text-base shadow-md active:scale-[0.98] transition-transform inline-flex items-center justify-center gap-2"
+            data-testid="button-close-sheet"
+            aria-label="Close"
+          >
+            <X className="w-5 h-5" strokeWidth={3} />
+            Close
+          </button>
         </div>
       </SheetContent>
     </Sheet>
