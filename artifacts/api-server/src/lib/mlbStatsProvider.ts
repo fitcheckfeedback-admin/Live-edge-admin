@@ -276,11 +276,18 @@ export function extractPitchingValue(s: PitchingGameStat, prop: MlbPitcherPropKe
 }
 
 // ── Opponent rank ──────────────────────────────────────────────────────────
-// Rank 1 = toughest matchup for hitters (i.e., the prop is hardest to hit Over).
-// For "K" props (Hitter Strikeouts), more team Ks = HARDER to go Under.
-// We return a 1-30 integer where lower number = friendlier matchup for hitter
-// going OVER, *except* for Hitter Strikeouts where lower = harder for hitter
-// (more pitcher K's). The propsGenerator handles the directional impact.
+// Returns a 1-30 rank where:
+//   • For batting-volume props (Hits, Total Bases, Runs, RBIs, HR, SB, ...):
+//     rank 1 = the team that allows the LEAST → toughest matchup → hardest OVER.
+//     rank 30 = team that allows the MOST → easiest OVER.
+//   • For Hitter Strikeouts (a "bad" outcome for the hitter):
+//     valueOf is the opposing pitching staff's K-rate, so:
+//     rank 1 = team with the LOWEST pitcher K-rate → fewest Ks expected →
+//              hardest for hitter to go OVER on K's (easier UNDER).
+//     rank 30 = team with the HIGHEST pitcher K-rate → most Ks expected →
+//              easiest for hitter to go OVER on K's.
+// In both cases, downstream `buildMlbOpponentFactor` treats lower rank as a
+// negative impact on the OVER side, which is correct for both interpretations.
 export function rankOpponentForHitter(
   prop: MlbBatterPropKey,
   opponentTeamId: number,

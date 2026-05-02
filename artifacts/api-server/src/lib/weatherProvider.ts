@@ -53,6 +53,12 @@ export async function getWeatherForGame(
     url.searchParams.set("wind_speed_unit", "mph");
     url.searchParams.set("forecast_days", "2");
     url.searchParams.set("past_days", "1");
+    // Force UTC so the times[] array we receive can be safely parsed with
+    // `+ "Z"` and matched against the ISO game start (also UTC). Open-Meteo's
+    // current default is GMT, but pinning it explicitly removes any chance
+    // of an upstream default change silently shifting weather lookups by
+    // many hours (architect-flagged hardening).
+    url.searchParams.set("timezone", "UTC");
 
     const r = await fetch(url, { signal: AbortSignal.timeout(5000) });
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
