@@ -292,28 +292,32 @@ export function PlayerDetailSheet({ open, onOpenChange, player, props }: PlayerD
           </SheetDescription>
         </VisuallyHidden.Root>
         {/*
-          Close button lives on the sheet shell (NOT inside the scrolling area)
-          so it stays visible as the user scrolls through stat lines. The
-          `top` value uses env(safe-area-inset-top) so phones with a notch /
-          dynamic island push the button below the system UI in portrait —
-          previously it was hidden behind the notch and only reachable by
-          rotating the phone. Larger 40x40 hit-target for thumb-friendliness.
+          Sticky close bar — lives at the TOP of the sheet as a real flex
+          row (NOT absolute-positioned). Earlier attempts using `position:
+          absolute` + safe-area-inset-top were hidden behind the iframe's
+          notch padding on mobile, so taps never reached the X. A real
+          flex row is always visible, full-width, and the 44x44 hit-target
+          meets the iOS/Android tap-target guideline.
         */}
-        <button
-          type="button"
-          onClick={() => onOpenChange(false)}
-          className="absolute right-3 z-20 w-10 h-10 rounded-full bg-black/60 hover:bg-black/80 flex items-center justify-center text-white shadow-lg backdrop-blur-sm"
-          style={{ top: "max(0.75rem, env(safe-area-inset-top))" }}
-          data-testid="button-close-sheet"
-          aria-label="Close"
+        <div
+          className="flex items-center justify-end px-2 py-2 border-b border-border bg-card shrink-0"
+          style={{ paddingTop: "max(0.5rem, env(safe-area-inset-top))" }}
         >
-          <X className="w-5 h-5" />
-        </button>
+          <button
+            type="button"
+            onClick={() => onOpenChange(false)}
+            className="w-11 h-11 rounded-full bg-white/5 hover:bg-white/10 active:bg-white/15 flex items-center justify-center text-white"
+            data-testid="button-close-sheet"
+            aria-label="Close"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
 
         <div className="overflow-y-auto flex-1">
         {/* Hero header */}
         <div className="relative bg-gradient-to-br from-slate-800 via-slate-900 to-background p-4 pb-5 border-b border-border">
-          <div className="flex items-center gap-3 pr-14">
+          <div className="flex items-center gap-3">
             <PlayerAvatar src={player.playerImage} name={player.playerName} size={16} />
             <div className="flex-1 min-w-0">
               <h2 className="text-2xl font-black text-white leading-tight" data-testid="text-player-name">{player.playerName}</h2>
