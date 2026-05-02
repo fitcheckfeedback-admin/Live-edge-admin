@@ -282,7 +282,7 @@ export function PlayerDetailSheet({ open, onOpenChange, player, props }: PlayerD
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="bottom"
-        className="bg-card border-t border-border max-h-[92vh] overflow-y-auto p-0"
+        className="bg-card border-t border-border max-h-[92vh] p-0 flex flex-col"
         data-testid="player-detail-sheet"
       >
         <VisuallyHidden.Root>
@@ -291,19 +291,29 @@ export function PlayerDetailSheet({ open, onOpenChange, player, props }: PlayerD
             All available prop categories for {player.playerName}, {player.teamAbbr} vs {player.opponentAbbr}.
           </SheetDescription>
         </VisuallyHidden.Root>
+        {/*
+          Close button lives on the sheet shell (NOT inside the scrolling area)
+          so it stays visible as the user scrolls through stat lines. The
+          `top` value uses env(safe-area-inset-top) so phones with a notch /
+          dynamic island push the button below the system UI in portrait —
+          previously it was hidden behind the notch and only reachable by
+          rotating the phone. Larger 40x40 hit-target for thumb-friendliness.
+        */}
+        <button
+          type="button"
+          onClick={() => onOpenChange(false)}
+          className="absolute right-3 z-20 w-10 h-10 rounded-full bg-black/60 hover:bg-black/80 flex items-center justify-center text-white shadow-lg backdrop-blur-sm"
+          style={{ top: "max(0.75rem, env(safe-area-inset-top))" }}
+          data-testid="button-close-sheet"
+          aria-label="Close"
+        >
+          <X className="w-5 h-5" />
+        </button>
+
+        <div className="overflow-y-auto flex-1">
         {/* Hero header */}
         <div className="relative bg-gradient-to-br from-slate-800 via-slate-900 to-background p-4 pb-5 border-b border-border">
-          <button
-            type="button"
-            onClick={() => onOpenChange(false)}
-            className="absolute top-3 right-3 z-10 w-8 h-8 rounded-full bg-black/40 hover:bg-black/60 flex items-center justify-center text-white"
-            data-testid="button-close-sheet"
-            aria-label="Close"
-          >
-            <X className="w-4 h-4" />
-          </button>
-
-          <div className="flex items-center gap-3 pr-10">
+          <div className="flex items-center gap-3 pr-14">
             <PlayerAvatar src={player.playerImage} name={player.playerName} size={16} />
             <div className="flex-1 min-w-0">
               <h2 className="text-2xl font-black text-white leading-tight" data-testid="text-player-name">{player.playerName}</h2>
@@ -351,6 +361,7 @@ export function PlayerDetailSheet({ open, onOpenChange, player, props }: PlayerD
             Stat Lines · {sorted.length} {sorted.length === 1 ? "category" : "categories"}
           </p>
           {sorted.map((p) => <CategoryRow key={p.id} prop={p} />)}
+        </div>
         </div>
       </SheetContent>
     </Sheet>
