@@ -137,14 +137,47 @@ function stdev(arr: number[]): number {
   return Math.sqrt(arr.reduce((s, v) => s + (v - m) ** 2, 0) / arr.length);
 }
 
-// Always snap the model line to a HALF-integer (X.5). Two reasons:
-//   1. Integer-valued props (hits, strikeouts, home runs) can never "push"
-//      when the line ends in .5, which matches how real sportsbooks set them.
-//   2. Rounding around the player's true rolling average produces a natural
-//      ~50/50 Over/Under split — letting recent form (avg5) decide the side
-//      instead of baking in a directional bias.
+// Snap a value to the nearest 0.5 increment — sportsbooks offer both integer
+// (1.0, 2.0) and half-integer (0.5, 1.5) lines.
 function roundLine(value: number): number {
-  return Math.round(value - 0.5) + 0.5;
+  return Math.round(value * 2) / 2;
+}
+
+// Push-aware hit count: when a value exactly equals the line, give it
+// half-credit. Keeps integer-line props (where pushes are common) from
+// biasing toward Under.
+function countHits(values: number[], line: number): number {
+  return values.reduce((sum, v) => sum + (v > line ? 1 : v === line ? 0.5 : 0), 0);
+}
+
+// Pick the line that makes the historical hit rate closest to 50%. This is
+// what real sportsbooks do — the goal of the line is to split the action, not
+// to predict the mean. Anchoring the line on the raw mean creates structural
+// Under bias for low-volume stats because the floor (0.5) sits above any
+// average < 0.5, while the integer-step rounding pushes most medium-volume
+// averages above their true center too. By searching candidates near the
+// mean and choosing the one with hitRate closest to 50%, we let recent form
+// (avg5 vs line) genuinely decide each pick's side instead of the rounding.
+function chooseBalancedLine(values: number[]): number {
+  if (values.length === 0) return 0.5;
+  const avg = values.reduce((s, v) => s + v, 0) / values.length;
+  const candidates: number[] = [];
+  // Search ±1.0 from the mean in 0.5 steps; floor at 0.5.
+  for (let off = -1; off <= 1; off += 0.5) {
+    const c = Math.max(0.5, roundLine(avg + off));
+    if (!candidates.includes(c)) candidates.push(c);
+  }
+  let best = candidates[0]!;
+  let bestImbalance = Infinity;
+  for (const c of candidates) {
+    const rate = countHits(values, c) / values.length;
+    const imbalance = Math.abs(rate - 0.5);
+    if (imbalance < bestImbalance) {
+      bestImbalance = imbalance;
+      best = c;
+    }
+  }
+  return best;
 }
 
 async function batchedMap<T, R>(items: T[], batchSize: number, fn: (item: T) => Promise<R>): Promise<R[]> {
@@ -217,6 +250,17 @@ function pickNbaPlayers(roster: NbaRosterPlayer[], teamAbbr: string, count: numb
 }
 
 // ── Player picking (MLB path) ──────────────────────────────────────────────
+// Returns true if `dateStr` (ISO YYYY-MM-DD or full ISO) is within `days` days
+// of now. Used to exclude players from the surfaced picks if they haven't
+// actually played a game recently — covers IL stints, AAA assignments,
+// G-League two-way demotions, and DFAs that the roster endpoints lag on.
+function playedRecently(dateStr: string, days: number): boolean {
+  if (!dateStr) return false;
+  const t = new Date(dateStr).getTime();
+  if (!Number.isFinite(t)) return false;
+  return Date.now() - t <= days * 24 * 60 * 60 * 1000;
+}
+
 function pickMlbPlayers(
   roster: MlbRosterPlayer[],
   teamAbbr: string,
@@ -445,7 +489,10 @@ function buildH2HFactor(
     };
   }
   const avg = mean(values);
-  const hits = values.filter((v) => v > line).length;
+  // Push-aware (matches the core model in buildPropFromRealData): on integer
+  // lines, v === line counts as half a hit so the H2H factor doesn't
+  // reintroduce the Under skew that the rest of the pipeline now controls.
+  const hits = countHits(values, line);
   const hitRate = hits / values.length;
   // Impact: +/- pp based on how far avg is above/below the line, scaled
   const range = Math.max(0.5, line);
@@ -508,13 +555,23 @@ function buildPropFromRealData(input: PropInputs): PlayerProp | null {
     if (Math.max(...last10) === 0) return null;
   }
 
-  // Model line: anchor on the rolling-10 average and snap to nearest half-integer.
-  // No over/under bias is baked in — recent form (avg5 vs line) decides the side,
-  // which produces a natural mix of Over and Under recommendations.
-  const line = Math.max(0.5, roundLine(avg10));
+  // Model line: pick the line whose historical hit rate is closest to 50%
+  // (sportsbook-style "split the action"), not the raw rounded mean. This is
+  // what removes the structural Under bias that low-volume stats create.
+  const line = chooseBalancedLine(last10);
 
-  const hits10 = last10.filter((v) => v > line).length;
-  const hits5 = last5.filter((v) => v > line).length;
+  // If even the best balanced line is one-sided (outside 25%-75% historical
+  // hit rate), this prop has no real edge to surface — it's just "this player
+  // almost never / always does X" dressed up as a confident pick. Skipping
+  // these is what kills the structural Under bias from low-volume stats: a
+  // player averaging 0.2 hits has no actionable Hits prop, just noise.
+  const balancedHitRate = countHits(last10, line) / Math.max(1, last10.length);
+  if (balancedHitRate >= 0.75 || balancedHitRate <= 0.25) return null;
+
+  // Pushes (v === line, only possible at integer lines) get half-credit so
+  // hitRate doesn't artificially skew toward the Under side.
+  const hits10 = countHits(last10, line);
+  const hits5 = countHits(last5, line);
   const hitRate10 = hits10 / Math.max(1, last10.length);
   const hitRate5 = hits5 / Math.max(1, last5.length);
 
@@ -662,6 +719,10 @@ async function processMlbGame(
   await batchedMap(batterCtxs, 4, async (ctx) => {
     const log = await getMlbHittingGameLog(ctx.player.mlbId);
     if (log.length === 0) return;
+    // Roster freshness: only surface players who have actually played in the
+    // last 10 days. The MLB "active" roster includes IL players and benched
+    // call-ups who shouldn't appear as today's picks.
+    if (!playedRecently(log[log.length - 1]!.date, 10)) return;
     const playerProps: PlayerProp[] = [];
     for (const tmpl of MLB_BATTER_TEMPLATES) {
       const prop = tmpl.type as MlbBatterPropKey;
@@ -670,10 +731,8 @@ async function processMlbGame(
         .filter((g) => g.opponentId === ctx.opponentMlbId)
         .slice(-10)
         .map((g) => extractHittingValue(g.stat, prop));
-      // We need the line BEFORE building factors; precompute a tentative line from avg10.
-      // Must match the formula used inside buildPropFromRealData so factors point the right way.
-      const tentativeAvg10 = mean(values.slice(-10));
-      const tentativeLine = Math.max(0.5, roundLine(tentativeAvg10));
+      // We need the line BEFORE building factors; must match buildPropFromRealData's formula.
+      const tentativeLine = chooseBalancedLine(values.slice(-10));
       const isOverTentative = (mean(values.slice(-5)) - tentativeLine) >= 0;
       const opponentFactor = buildMlbOpponentFactor(prop, ctx.opponentAbbr, ctx.opponentMlbId, isOverTentative, teamPitchingStats);
       const weatherFactor = ctx.isHome
@@ -713,6 +772,9 @@ async function processMlbGame(
   await batchedMap(pitcherCtxs, 3, async (ctx) => {
     const log = await getMlbPitchingGameLog(ctx.player.mlbId);
     if (log.length === 0) return;
+    // Pitchers throw less often (every 5 days for starters), so widen the
+    // freshness window to 14 days. Anyone older than that is on the IL or DFA'd.
+    if (!playedRecently(log[log.length - 1]!.date, 14)) return;
     const tmpl = MLB_PITCHER_TEMPLATES[0]!;
     const prop: MlbPitcherPropKey = "Pitcher Strikeouts";
     const values = log.map((g) => extractPitchingValue(g.stat, prop));
@@ -721,7 +783,7 @@ async function processMlbGame(
       .filter((g) => g.opponentId === ctx.opponentMlbId)
       .slice(-10)
       .map((g) => extractPitchingValue(g.stat, prop));
-    const tentativeLine = Math.max(0.5, roundLine(mean(values.slice(-10))));
+    const tentativeLine = chooseBalancedLine(values.slice(-10));
     const isOverTentative = (mean(values.slice(-5)) - tentativeLine) >= 0;
     // Pitcher's "opponent" defensively for K's: use opposing team's team-level
     // strikeOuts as hitters (more team K's = easier OVER for pitcher K). We have
@@ -794,6 +856,9 @@ async function processNbaGame(
   await batchedMap(ctxs, 5, async (ctx) => {
     const log = await getNbaPlayerGameLog(ctx.player.id);
     if (log.length === 0) return;
+    // NBA roster freshness — exclude players who haven't suited up recently
+    // (injured, two-way assignment to G-League, etc.).
+    if (!playedRecently(log[log.length - 1]!.date, 10)) return;
     const templates = NBA_TEMPLATES_BY_POS[ctx.player.position] ?? NBA_TEMPLATES_BY_POS["F"]!;
     const playerProps: PlayerProp[] = [];
     for (const tmpl of templates) {
@@ -803,7 +868,7 @@ async function processNbaGame(
         .filter((g) => g.opponentAbbr === ctx.oppAbbr)
         .slice(-10)
         .map((g) => extractNbaValue(g, prop));
-      const tentativeLine = Math.max(0.5, roundLine(mean(values.slice(-10))));
+      const tentativeLine = chooseBalancedLine(values.slice(-10));
       const isOverTentative = (mean(values.slice(-5)) - tentativeLine) >= 0;
       const opponentFactor = buildNbaOpponentFactor(prop, ctx.oppAbbr, ctx.oppTeamId, isOverTentative, paRanks);
       const h2hFactor = buildH2HFactor(h2hValues, tentativeLine, isOverTentative, ctx.oppAbbr);

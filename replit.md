@@ -52,8 +52,10 @@ A sports betting research dashboard with:
 | H2H meetings | Same gameLog endpoints filtered by opponent team ID | Real prior meetings — when none exist, the factor honestly says "No prior meetings on file" |
 
 **What's still model-generated** (because there is no truthful public source):
-- The **prop line itself** — derived as `roundToHalf(real_avg10 × 0.95 + 0.25)` and explicitly labeled "model line" in every prop's `reasoning` text. PrizePicks and Underdog do NOT publish public APIs, and we do not bypass their authenticated mobile endpoints. To pull real sportsbook lines instead, set the optional `ODDS_API_KEY` env var.
+- The **prop line itself** — picked by `chooseBalancedLine(values)`, which searches candidate lines at `avg10 ± 1.0` in 0.5 steps and selects the one whose historical hit rate is closest to 50% (the same "split the action" approach real sportsbooks use). Push-aware (`v === line` counts half) so integer lines stay fair. Lines that are still hopelessly one-sided (>75% or <25% historical hit rate even at the best candidate) are dropped as non-actionable. Explicitly labeled "model line" in every prop's `reasoning`. PrizePicks and Underdog do NOT publish public APIs, and we do not bypass their authenticated mobile endpoints. To pull real sportsbook lines instead, set the optional `ODDS_API_KEY` env var.
 - The **win probability** — computed from the real `hitRate10`, real consistency, real trend, and real factor impacts. The model is transparent and auditable in `propsGenerator.ts`.
+
+**Roster freshness** — even though MLB / NBA "active" rosters technically include IL players, AAA call-ups, and G-League two-way assignees, we additionally require each surfaced player to have an actual game in the last 10 days (14 for MLB pitchers). `playedRecently()` checks the last entry of the player's gameLog. Stale roster entries are silently dropped from picks.
 
 **Edge cases handled honestly (no fake fallbacks):**
 - Player with no career data on file → that player is skipped, not faked.
