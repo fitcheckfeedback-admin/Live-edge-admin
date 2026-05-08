@@ -8,6 +8,7 @@ import { PlayerDetailSheet } from "@/components/PlayerDetailSheet";
 import { useBetSlip } from "@/lib/betSlip";
 import { useNav } from "@/lib/navContext";
 import { cn } from "@/lib/utils";
+import { formatGameTime } from "@/lib/gameTime";
 import { Star, ListChecks, ChevronLeft, Flame, ChevronRight } from "lucide-react";
 
 const SPORTS = ["ALL", "NBA", "MLB"] as const;
@@ -68,9 +69,7 @@ function PlayerCard({
 }) {
   const best = group.bestProp;
   const isOver = best.recommendation.includes("Over");
-  const startTime = group.gameStartTime
-    ? new Date(group.gameStartTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-    : "";
+  const startTime = formatGameTime(group.gameStartTime);
 
   return (
     <Card
@@ -147,7 +146,7 @@ function GameStripCard({
   game: any;
   onSelect: () => void;
 }) {
-  const start = game.startTime ? new Date(game.startTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "";
+  const start = formatGameTime(game.startTime);
   const isLive = game.isLive;
   const isFinal = game.status === "final";
 
@@ -366,7 +365,7 @@ export default function PicksTab() {
                 <span className="text-xs text-muted-foreground uppercase tracking-wider">Final</span>
               ) : (
                 <span className="text-xs text-muted-foreground font-mono">
-                  {selectedGame.startTime ? new Date(selectedGame.startTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : ""}
+                  {formatGameTime(selectedGame.startTime)}
                 </span>
               )}
             </div>

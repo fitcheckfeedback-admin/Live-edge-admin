@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Last5Chart } from "@/components/Last5Chart";
 import { WinProbBadge } from "@/components/WinProbBadge";
 import { cn } from "@/lib/utils";
+import { formatGameTime } from "@/lib/gameTime";
 import { useBetSlip, type SlipPick } from "@/lib/betSlip";
 import { useToast } from "@/hooks/use-toast";
 import { ChevronDown, ChevronUp, Star, X, CloudRain, Sun, Wind, Home, Shield, History, Check } from "lucide-react";
@@ -274,9 +275,7 @@ export function PlayerDetailSheet({ open, onOpenChange, player, props }: PlayerD
     return (b.winProbability ?? 0) - (a.winProbability ?? 0);
   });
 
-  const startTime = player.gameStartTime
-    ? new Date(player.gameStartTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-    : "";
+  const startTime = formatGameTime(player.gameStartTime);
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>

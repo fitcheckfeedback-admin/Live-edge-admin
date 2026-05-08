@@ -11,14 +11,24 @@ export function relTime(iso: string): string {
 
 export function formatTime(iso?: string): string {
   if (!iso) return "";
-  try {
-    return new Date(iso).toLocaleTimeString([], {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  } catch {
-    return "";
-  }
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const time = d.toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  // The slate includes today + tomorrow's games, so the date prefix is
+  // critical — without it, tomorrow's afternoon games look like yesterday's
+  // afternoon games. Day comparison is done in the user's LOCAL timezone so
+  // a 10pm PT game whose UTC date is already +1 still reads as "Today".
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const tomorrow = new Date(today);
+  tomorrow.setDate(today.getDate() + 1);
+  const gameDay = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  if (gameDay.getTime() === today.getTime()) return `Today ${time}`;
+  if (gameDay.getTime() === tomorrow.getTime()) return `Tomorrow ${time}`;
+  return `${d.toLocaleDateString([], { weekday: "short" })} ${time}`;
 }
 
 export function todayLabel(): string {
