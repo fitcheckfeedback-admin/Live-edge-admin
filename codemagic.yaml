@@ -16,7 +16,7 @@ workflows:
         # MUST be set before the "Pre-bundle JS" step runs. Override in the
         # Codemagic UI (Environment variables) to point at the production
         # *.replit.app deployment once it's live.
-        EXPO_PUBLIC_DOMAIN: "06535027-33d0-43ef-949a-3c10766c0a6d-00-17wupj1hp4kia.janeway.replit.dev"
+        EXPO_PUBLIC_DOMAIN: "sports-bet-research.replit.app"
     scripts:
       - name: Enable pnpm via corepack
         script: |
