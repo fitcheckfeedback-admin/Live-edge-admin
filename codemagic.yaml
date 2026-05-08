@@ -5,14 +5,15 @@ workflows:
     integrations:
       app_store_connect: "Fit Check"
     environment:
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.liveedge.engine
       node: 20.11.0
       xcode: latest
       cocoapods: default
       vars:
         BUNDLE_ID: "com.liveedge.engine"
-        EAS_NO_VCS: "1"
-      groups:
-        - app_store_credentials   # must contain EXPO_TOKEN
+        XCODE_PROJECT_DIR: "artifacts/mobile/ios"
     scripts:
       - name: Enable pnpm via corepack
         script: |
@@ -20,29 +21,54 @@ workflows:
           corepack prepare pnpm@10.26.1 --activate
           pnpm --version
 
-      - name: Verify EXPO_TOKEN is set
-        script: |
-          if [ -z "$EXPO_TOKEN" ]; then
-            echo "ERROR: EXPO_TOKEN is required. Add it to the 'app_store_credentials' environment group in Codemagic (get one from expo.dev → Account Settings → Access Tokens)."
-            exit 1
-          fi
-
       - name: Install mobile dependencies
         script: |
           pnpm install --filter "@workspace/mobile..." --frozen-lockfile
 
-      - name: Build iOS .ipa locally via EAS
+      - name: Generate native iOS project (expo prebuild)
         script: |
           cd artifacts/mobile
-          npx --yes eas-cli@latest build \
-            --platform ios \
-            --profile production \
-            --local \
-            --non-interactive \
-            --output "$CM_BUILD_DIR/ios-build.ipa"
+          npx expo prebuild --platform ios --no-install --clean
+
+      - name: Install CocoaPods
+        script: |
+          cd artifacts/mobile/ios
+          pod install
+
+      - name: Set Info.plist bundle id
+        script: |
+          cd artifacts/mobile/ios
+          PROJECT=$(ls -d *.xcodeproj | head -n1)
+          /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier ${BUNDLE_ID}" "$(echo $PROJECT | sed 's/.xcodeproj//')/Info.plist" || true
+
+      - name: Set up code signing
+        script: |
+          cd artifacts/mobile/ios
+          xcode-project use-profiles
+
+      - name: Increment build number
+        script: |
+          cd artifacts/mobile/ios
+          LATEST_BUILD_NUMBER=$(app-store-connect get-latest-app-store-build-number "$BUNDLE_ID" 2>/dev/null || echo 0)
+          NEW_BUILD_NUMBER=$(($LATEST_BUILD_NUMBER + 1))
+          echo "Setting build number to $NEW_BUILD_NUMBER"
+          agvtool new-version -all $NEW_BUILD_NUMBER
+
+      - name: Build iOS .ipa
+        script: |
+          cd artifacts/mobile/ios
+          WORKSPACE=$(ls -d *.xcworkspace | head -n1)
+          SCHEME=$(xcode-project detect-bundle-id --project "$(ls -d *.xcodeproj | head -n1)" --warn-only 2>/dev/null && \
+                   xcodebuild -workspace "$WORKSPACE" -list -json | python3 -c "import json,sys; print(json.load(sys.stdin)['workspace']['schemes'][0])")
+          echo "Using workspace: $WORKSPACE, scheme: $SCHEME"
+          cd ../../..
+          xcode-project build-ipa \
+            --workspace "artifacts/mobile/ios/$WORKSPACE" \
+            --scheme "$SCHEME"
 
     artifacts:
-      - ios-build.ipa
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
 
     publishing:
       app_store_connect:
