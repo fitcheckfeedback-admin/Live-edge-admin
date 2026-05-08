@@ -35,12 +35,6 @@ workflows:
           cd artifacts/mobile/ios
           pod install
 
-      - name: Set Info.plist bundle id
-        script: |
-          cd artifacts/mobile/ios
-          PROJECT=$(ls -d *.xcodeproj | head -n1)
-          /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier ${BUNDLE_ID}" "$(echo $PROJECT | sed 's/.xcodeproj//')/Info.plist" || true
-
       - name: Set up code signing
         script: |
           cd artifacts/mobile/ios
@@ -58,8 +52,7 @@ workflows:
         script: |
           cd artifacts/mobile/ios
           WORKSPACE=$(ls -d *.xcworkspace | head -n1)
-          SCHEME=$(xcode-project detect-bundle-id --project "$(ls -d *.xcodeproj | head -n1)" --warn-only 2>/dev/null && \
-                   xcodebuild -workspace "$WORKSPACE" -list -json | python3 -c "import json,sys; print(json.load(sys.stdin)['workspace']['schemes'][0])")
+          SCHEME=$(basename "$WORKSPACE" .xcworkspace)
           echo "Using workspace: $WORKSPACE, scheme: $SCHEME"
           cd ../../..
           xcode-project build-ipa \
