@@ -15,7 +15,7 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.liveedge.engine",
+      "bundleIdentifier": "app.replit.liveedgeengine",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
