@@ -35,6 +35,17 @@ workflows:
           cd artifacts/mobile/ios
           pod install
 
+      - name: Fetch / create signing files
+        script: |
+          app-store-connect fetch-signing-files "$BUNDLE_ID" \
+            --type IOS_APP_STORE \
+            --create
+
+      - name: Initialize keychain
+        script: |
+          keychain initialize
+          keychain add-certificates
+
       - name: Set up code signing
         script: |
           cd artifacts/mobile/ios
