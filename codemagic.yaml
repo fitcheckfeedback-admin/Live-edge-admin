@@ -39,9 +39,8 @@ workflows:
       - name: Fetch / create signing files
         script: |
           app-store-connect fetch-signing-files "$BUNDLE_ID" \
-            --platform IOS \
             --type IOS_APP_STORE \
-            --certificate-key-path /tmp/apple_cert.key \
+            --certificate-key=@file:/tmp/apple_cert.key \
             --create
 
       - name: Initialize keychain
