@@ -17,7 +17,7 @@ workflows:
       - name: Enable pnpm via corepack
         script: |
           corepack enable
-          corepack prepare pnpm@9.15.0 --activate
+          corepack prepare pnpm@10.26.1 --activate
           pnpm --version
 
       - name: Verify EXPO_TOKEN is set
