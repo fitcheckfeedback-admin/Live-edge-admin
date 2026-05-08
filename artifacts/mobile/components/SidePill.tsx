@@ -1,5 +1,9 @@
-import { StyleSheet, Text, View } from "react-native";
+// ─────────────────────────────────────────────────────────────────────────────
+// SidePill.tsx
+// ─────────────────────────────────────────────────────────────────────────────
+// Drop this into artifacts/mobile/components/SidePill.tsx
 
+import { StyleSheet, Text, View } from "react-native";
 import { useColors } from "@/hooks/useColors";
 
 export function SidePill({
@@ -14,13 +18,16 @@ export function SidePill({
   const colors = useColors();
   const isOver = side === "Over";
   const fontSize = size === "sm" ? 10 : 11;
+  const padH = size === "sm" ? 8 : 10;
+
   return (
     <View
       style={[
-        styles.pill,
+        sidePillStyles.pill,
         {
           backgroundColor: isOver ? colors.overSoft : colors.underSoft,
           borderColor: isOver ? colors.overBorder : colors.underBorder,
+          paddingHorizontal: padH,
         },
       ]}
     >
@@ -29,22 +36,21 @@ export function SidePill({
           color: isOver ? colors.over : colors.under,
           fontFamily: "Inter_700Bold",
           fontSize,
-          letterSpacing: 0.6,
+          letterSpacing: 0.5,
         }}
       >
-        {isOver ? "▲ MORE" : "▼ LESS"}
-        {line !== undefined ? ` ${line}` : ""}
+        {isOver ? "▲ OVER" : "▼ UNDER"}
+        {line !== undefined ? `  ${line}` : ""}
       </Text>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const sidePillStyles = StyleSheet.create({
   pill: {
-    borderRadius: 999,
-    borderWidth: 1.5,
-    paddingHorizontal: 10,
-    paddingVertical: 3,
+    borderRadius: 7,
+    borderWidth: 1,
+    paddingVertical: 4,
     alignSelf: "flex-start",
   },
 });

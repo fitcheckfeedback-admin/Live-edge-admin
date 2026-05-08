@@ -1,3 +1,4 @@
+import { Feather } from "@expo/vector-icons";
 import {
   createContext,
   useCallback,
@@ -13,10 +14,13 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useColors } from "@/hooks/useColors";
 
+type ToastVariant = "default" | "success" | "error" | "warning";
+
 interface ToastInput {
   title: string;
   description?: string;
-  variant?: "default" | "destructive";
+  variant?: ToastVariant;
+  duration?: number;
 }
 
 interface ToastContextValue {
@@ -25,30 +29,83 @@ interface ToastContextValue {
 
 const ToastContext = createContext<ToastContextValue | null>(null);
 
+function variantStyle(
+  variant: ToastVariant,
+  colors: ReturnType<typeof useColors>,
+): { icon: keyof typeof Feather.glyphMap; color: string; bg: string; border: string } {
+  switch (variant) {
+    case "success":
+      return {
+        icon: "check-circle",
+        color: colors.over,
+        bg: colors.overSoft,
+        border: colors.overBorder,
+      };
+    case "error":
+      return {
+        icon: "alert-circle",
+        color: colors.under,
+        bg: colors.underSoft,
+        border: colors.underBorder,
+      };
+    case "warning":
+      return {
+        icon: "alert-triangle",
+        color: colors.accent,
+        bg: colors.accentGlow,
+        border: `${colors.accent}50`,
+      };
+    default:
+      return {
+        icon: "zap",
+        color: colors.primary,
+        bg: colors.primaryGlow,
+        border: colors.cardBorderActive,
+      };
+  }
+}
+
 export function ToastProvider({ children }: { children: ReactNode }) {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const [toast, setToast] = useState<ToastInput | null>(null);
   const opacity = useRef(new Animated.Value(0)).current;
-  const translateY = useRef(new Animated.Value(-20)).current;
+  const translateY = useRef(new Animated.Value(-16)).current;
+  const scale = useRef(new Animated.Value(0.95)).current;
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const dismiss = useCallback(() => {
+    Animated.parallel([
+      Animated.timing(opacity, { toValue: 0, duration: 180, useNativeDriver: true }),
+      Animated.timing(translateY, { toValue: -16, duration: 180, useNativeDriver: true }),
+      Animated.timing(scale, { toValue: 0.95, duration: 180, useNativeDriver: true }),
+    ]).start(() => setToast(null));
+  }, [opacity, translateY, scale]);
 
   const show = useCallback(
     (t: ToastInput) => {
       if (hideTimer.current) clearTimeout(hideTimer.current);
       setToast(t);
+      // Animate in
       Animated.parallel([
-        Animated.timing(opacity, { toValue: 1, duration: 180, useNativeDriver: true }),
-        Animated.spring(translateY, { toValue: 0, useNativeDriver: true, friction: 7 }),
+        Animated.timing(opacity, { toValue: 1, duration: 200, useNativeDriver: true }),
+        Animated.spring(translateY, {
+          toValue: 0,
+          useNativeDriver: true,
+          friction: 8,
+          tension: 100,
+        }),
+        Animated.spring(scale, {
+          toValue: 1,
+          useNativeDriver: true,
+          friction: 8,
+          tension: 100,
+        }),
       ]).start();
-      hideTimer.current = setTimeout(() => {
-        Animated.parallel([
-          Animated.timing(opacity, { toValue: 0, duration: 200, useNativeDriver: true }),
-          Animated.timing(translateY, { toValue: -20, duration: 200, useNativeDriver: true }),
-        ]).start(() => setToast(null));
-      }, 2400);
+      // Auto-dismiss
+      hideTimer.current = setTimeout(dismiss, t.duration ?? 2600);
     },
-    [opacity, translateY],
+    [opacity, translateY, scale, dismiss],
   );
 
   useEffect(
@@ -59,8 +116,8 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   );
 
   const value = useMemo(() => ({ show }), [show]);
-
-  const isDestructive = toast?.variant === "destructive";
+  const variant = toast?.variant ?? "default";
+  const vs = variantStyle(variant, colors);
 
   return (
     <ToastContext.Provider value={value}>
@@ -70,36 +127,40 @@ export function ToastProvider({ children }: { children: ReactNode }) {
           pointerEvents="box-none"
           style={[
             styles.host,
-            { top: insets.top + 8, opacity, transform: [{ translateY }] },
+            {
+              top: insets.top + 10,
+              opacity,
+              transform: [{ translateY }, { scale }],
+            },
           ]}
         >
           <Pressable
-            onPress={() => {
-              Animated.timing(opacity, {
-                toValue: 0,
-                duration: 150,
-                useNativeDriver: true,
-              }).start(() => setToast(null));
-            }}
+            onPress={dismiss}
             style={[
               styles.toast,
               {
                 backgroundColor: colors.card,
-                borderColor: isDestructive ? colors.destructive : colors.cardBorder,
-                borderRadius: colors.radius,
+                borderColor: vs.border,
+                borderLeftColor: vs.color,
               },
             ]}
           >
+            {/* Icon */}
             <View
               style={[
-                styles.dot,
-                {
-                  backgroundColor: isDestructive ? colors.destructive : colors.primary,
-                },
+                styles.iconWrap,
+                { backgroundColor: vs.bg, borderColor: vs.border },
               ]}
-            />
+            >
+              <Feather name={vs.icon} size={14} color={vs.color} />
+            </View>
+
+            {/* Text */}
             <View style={{ flex: 1 }}>
-              <Text style={[styles.title, { color: colors.foreground }]} numberOfLines={1}>
+              <Text
+                style={[styles.title, { color: colors.foreground }]}
+                numberOfLines={1}
+              >
                 {toast.title}
               </Text>
               {toast.description ? (
@@ -111,6 +172,9 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                 </Text>
               ) : null}
             </View>
+
+            {/* Dismiss X */}
+            <Feather name="x" size={14} color={colors.mutedForeground} />
           </Pressable>
         </Animated.View>
       )}
@@ -129,21 +193,40 @@ const styles = StyleSheet.create({
     position: "absolute",
     left: 12,
     right: 12,
-    zIndex: 999,
+    zIndex: 9999,
   },
   toast: {
     flexDirection: "row",
-    alignItems: "flex-start",
+    alignItems: "center",
     gap: 10,
     padding: 12,
+    paddingLeft: 10,
     borderWidth: 1,
+    borderLeftWidth: 3,
+    borderRadius: 14,
     shadowColor: "#000",
-    shadowOpacity: 0.4,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 8,
+    shadowOpacity: 0.5,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 12,
   },
-  dot: { width: 8, height: 8, borderRadius: 4, marginTop: 5 },
-  title: { fontFamily: "Inter_600SemiBold", fontSize: 13 },
-  desc: { fontFamily: "Inter_400Regular", fontSize: 11.5, marginTop: 2 },
+  iconWrap: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  title: {
+    fontFamily: "Inter_700Bold",
+    fontSize: 13,
+    letterSpacing: -0.1,
+  },
+  desc: {
+    fontFamily: "Inter_400Regular",
+    fontSize: 11.5,
+    marginTop: 2,
+    lineHeight: 16,
+  },
 });

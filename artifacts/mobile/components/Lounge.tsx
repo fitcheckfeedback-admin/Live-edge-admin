@@ -288,7 +288,7 @@ export function LoungeFab() {
       show({
         title: "Couldn't send",
         description: err instanceof Error ? err.message : "Try again in a moment.",
-        variant: "destructive",
+        variant: "error",
       });
     } finally {
       setPosting(false);

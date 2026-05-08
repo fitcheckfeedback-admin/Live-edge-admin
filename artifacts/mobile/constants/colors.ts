@@ -1,56 +1,90 @@
 /**
- * Live Edge Engine — design tokens
+ * Live Edge Engine — Premium Design Tokens v2
  *
- * Synced from sibling web artifact (artifacts/live-edge-engine/src/index.css).
- * Dark-mode first to match the web app, which forces dark mode.
+ * Aesthetic direction: "Bloomberg Terminal meets Nike Training"
+ * — Deep navy/slate base with electric green accents
+ * — Glassmorphism surfaces with subtle gradients
+ * — Data-dense but breathable
  */
 
 const dark = {
-  text: "#f8fafc",
-  tint: "#22c55e",
+  // Core
+  text: "#f1f5f9",
+  tint: "#00ff87",
 
-  background: "#0c1426",
-  foreground: "#f8fafc",
+  // Backgrounds — layered depth system
+  background: "#060d1a",        // Deepest base
+  backgroundElevated: "#0a1628", // Cards rest here
+  backgroundSurface: "#0e1e38",  // Slightly lifted
 
-  card: "#0f1729",
-  cardForeground: "#f8fafc",
-  cardBorder: "#1a2540",
+  foreground: "#f1f5f9",
 
-  primary: "#22c55e",
-  primaryForeground: "#00321a",
+  // Cards
+  card: "#0a1628",
+  cardForeground: "#f1f5f9",
+  cardBorder: "#1a2d4a",
+  cardBorderActive: "#00ff8766",
+  cardGlow: "rgba(0,255,135,0.06)",
 
-  secondary: "#1e293b",
-  secondaryForeground: "#f8fafc",
+  // Primary — electric green
+  primary: "#00ff87",
+  primaryDim: "#00cc6a",
+  primaryForeground: "#001a0d",
+  primaryGlow: "rgba(0,255,135,0.15)",
+  primaryGlowStrong: "rgba(0,255,135,0.25)",
 
-  muted: "#1e293b",
-  mutedForeground: "#94a3b8",
+  // Secondary
+  secondary: "#162040",
+  secondaryForeground: "#94a3b8",
 
-  accent: "#fbbf24",
+  // Muted
+  muted: "#111e36",
+  mutedForeground: "#64748b",
+  mutedForegroundBright: "#94a3b8",
+
+  // Accent — amber/gold for "BEST" marks
+  accent: "#f59e0b",
+  accentDim: "#d97706",
   accentForeground: "#3d2900",
+  accentGlow: "rgba(245,158,11,0.15)",
 
-  destructive: "#dc2626",
+  // Danger
+  destructive: "#ef4444",
   destructiveForeground: "#fef2f2",
 
-  border: "#1e293b",
-  input: "#1e293b",
+  // Borders & Inputs
+  border: "#1a2d4a",
+  input: "#111e36",
 
-  // Semantic helpers (used across screens)
-  over: "#10b981",
-  overSoft: "rgba(16, 185, 129, 0.15)",
-  overBorder: "rgba(16, 185, 129, 0.4)",
-  under: "#ef4444",
-  underSoft: "rgba(239, 68, 68, 0.15)",
-  underBorder: "rgba(239, 68, 68, 0.4)",
+  // Semantic — Over/Under
+  over: "#00e676",
+  overSoft: "rgba(0,230,118,0.12)",
+  overBorder: "rgba(0,230,118,0.35)",
+  overText: "#00e676",
 
-  surfaceElev: "#162038",
-  surfaceMuted: "rgba(255,255,255,0.04)",
-  divider: "rgba(255,255,255,0.06)",
+  under: "#ff4d4d",
+  underSoft: "rgba(255,77,77,0.12)",
+  underBorder: "rgba(255,77,77,0.35)",
+  underText: "#ff4d4d",
+
+  // Surface helpers
+  surfaceElev: "#0e1e38",
+  surfaceMuted: "rgba(255,255,255,0.03)",
+  divider: "rgba(255,255,255,0.05)",
+
+  // Live indicator
+  live: "#00ff87",
+  liveGlow: "rgba(0,255,135,0.2)",
+
+  // Score highlights
+  scoreWin: "#00e676",
+  scoreLoss: "#ff4d4d",
 };
 
 const colors = {
-  light: dark,
+  light: dark, // Dark-only app
   dark,
-  radius: 10,
+  radius: 12,
 };
 
 export default colors;

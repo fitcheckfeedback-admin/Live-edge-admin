@@ -1,21 +1,16 @@
-import { useColorScheme } from "react-native";
-
 import colors from "@/constants/colors";
 
 /**
- * Returns the design tokens for the current color scheme.
+ * Returns the dark design tokens.
  *
- * The returned object contains all color tokens for the active palette
- * plus scheme-independent values like `radius`.
- *
- * Falls back to the light palette when no dark key is defined in
- * constants/colors.ts (the scaffold ships light-only by default).
- * When a sibling web artifact's dark tokens are synced into a `dark`
- * key, this hook will automatically switch palettes based on the
- * device's appearance setting.
+ * Live Edge Engine is a dark-only app — the design tokens in
+ * constants/colors.ts are dark-first and the light palette is
+ * intentionally identical to dark. This hook skips the useColorScheme()
+ * call entirely so:
+ *   1. No flash of light-mode colors on first render
+ *   2. No re-render when the device switches appearance
+ *   3. iOS system dark-mode toggle has zero effect on the app
  */
 export function useColors() {
-  const scheme = useColorScheme();
-  const palette = scheme === "dark" && colors.dark ? colors.dark : colors.light;
-  return { ...palette, radius: colors.radius };
+  return { ...colors.dark, radius: colors.radius };
 }

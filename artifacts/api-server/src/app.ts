@@ -2,6 +2,8 @@ import express, { type Express } from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import pinoHttp from "pino-http";
+import { lt } from "drizzle-orm";
+import { db, alertsTable } from "@workspace/db";
 import router from "./routes";
 import { logger } from "./lib/logger";
 import { seedIfEmpty } from "./routes/status";
@@ -50,5 +52,19 @@ function runGrader(): void {
 // Stagger initial run by 30s so ESPN/MLB caches have a chance to warm up.
 setTimeout(runGrader, 30_000);
 setInterval(runGrader, 60 * 60 * 1000);
+
+// Nightly cleanup: remove alerts older than 24h so the DB doesn't bloat.
+// Runs once at startup then every 6 hours.
+async function cleanStaleAlerts() {
+  try {
+    const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    await db.delete(alertsTable).where(lt(alertsTable.createdAt, cutoff));
+    logger.info("Stale alerts cleaned");
+  } catch (err) {
+    logger.warn({ err: String(err) }, "stale alert cleanup failed");
+  }
+}
+setTimeout(cleanStaleAlerts, 5_000);
+setInterval(cleanStaleAlerts, 6 * 60 * 60 * 1000);
 
 export default app;

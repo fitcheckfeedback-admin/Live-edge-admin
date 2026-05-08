@@ -66,53 +66,56 @@ interface PropTemplate {
 
 const NBA_TEMPLATES_BY_POS: Record<string, PropTemplate[]> = {
   PG: [
-    { type: "Points", unit: "pts", weight: 0.8 },
-    { type: "Assists", unit: "ast", weight: 1.0 },
-    { type: "Points + Assists", unit: "pts+ast", weight: 0.6 },
-    { type: "3-Pointers Made", unit: "3PM", weight: 0.5 },
+    { type: "Points",           unit: "pts",     weight: 1.0 },
+    { type: "Assists",          unit: "ast",     weight: 1.0 },
+    { type: "Pts+Reb+Ast",      unit: "PRA",     weight: 0.9 },
+    { type: "3-Pointers Made",  unit: "3PM",     weight: 0.8 },
+    { type: "Points + Assists", unit: "pts+ast", weight: 0.7 },
   ],
   SG: [
-    { type: "Points", unit: "pts", weight: 1.0 },
-    { type: "3-Pointers Made", unit: "3PM", weight: 0.7 },
-    { type: "Rebounds", unit: "reb", weight: 0.5 },
+    { type: "Points",           unit: "pts",     weight: 1.0 },
+    { type: "3-Pointers Made",  unit: "3PM",     weight: 0.9 },
+    { type: "Pts+Reb+Ast",      unit: "PRA",     weight: 0.8 },
+    { type: "Rebounds",         unit: "reb",     weight: 0.6 },
   ],
   SF: [
-    { type: "Points", unit: "pts", weight: 1.0 },
-    { type: "Rebounds", unit: "reb", weight: 0.6 },
-    { type: "Pts+Reb+Ast", unit: "PRA", weight: 0.7 },
+    { type: "Points",              unit: "pts",     weight: 1.0 },
+    { type: "Rebounds",            unit: "reb",     weight: 0.9 },
+    { type: "Pts+Reb+Ast",         unit: "PRA",     weight: 0.9 },
+    { type: "Points + Rebounds",   unit: "pts+reb", weight: 0.7 },
   ],
   PF: [
-    { type: "Points", unit: "pts", weight: 0.8 },
-    { type: "Rebounds", unit: "reb", weight: 1.0 },
-    { type: "Points + Rebounds", unit: "pts+reb", weight: 0.7 },
+    { type: "Points",            unit: "pts",     weight: 0.9 },
+    { type: "Rebounds",          unit: "reb",     weight: 1.0 },
+    { type: "Pts+Reb+Ast",       unit: "PRA",     weight: 0.9 },
+    { type: "Points + Rebounds", unit: "pts+reb", weight: 0.8 },
   ],
   C: [
-    { type: "Rebounds", unit: "reb", weight: 1.0 },
-    { type: "Points + Rebounds", unit: "pts+reb", weight: 0.7 },
-    { type: "Blocks", unit: "blk", weight: 0.5 },
+    { type: "Points",            unit: "pts",     weight: 0.9 },
+    { type: "Rebounds",          unit: "reb",     weight: 1.0 },
+    { type: "Points + Rebounds", unit: "pts+reb", weight: 0.9 },
+    { type: "Pts+Reb+Ast",       unit: "PRA",     weight: 0.7 },
   ],
   G: [
-    { type: "Points", unit: "pts", weight: 1.0 },
-    { type: "Assists", unit: "ast", weight: 0.7 },
+    { type: "Points",           unit: "pts",     weight: 1.0 },
+    { type: "Assists",          unit: "ast",     weight: 0.9 },
+    { type: "3-Pointers Made",  unit: "3PM",     weight: 0.7 },
   ],
   F: [
-    { type: "Points", unit: "pts", weight: 1.0 },
-    { type: "Rebounds", unit: "reb", weight: 0.7 },
+    { type: "Points",   unit: "pts", weight: 1.0 },
+    { type: "Rebounds", unit: "reb", weight: 0.9 },
+    { type: "Pts+Reb+Ast", unit: "PRA", weight: 0.8 },
   ],
 };
 
 const MLB_BATTER_TEMPLATES: PropTemplate[] = [
-  { type: "Home Runs", unit: "HR", weight: 0.7 },
-  { type: "Total Bases", unit: "TB", weight: 1.0 },
+  { type: "Total Bases",    unit: "TB",      weight: 1.0 },
   { type: "Hits+Runs+RBIs", unit: "H+R+RBI", weight: 1.0 },
-  { type: "Hits", unit: "hits", weight: 0.9 },
-  { type: "Runs", unit: "runs", weight: 0.7 },
-  { type: "RBIs", unit: "RBI", weight: 0.8 },
-  { type: "Walks", unit: "BB", weight: 0.6 },
-  { type: "Stolen Bases", unit: "SB", weight: 0.4 },
-  { type: "Hitter Strikeouts", unit: "K", weight: 0.6 },
-  { type: "Singles", unit: "1B", weight: 0.7 },
-  { type: "Doubles", unit: "2B", weight: 0.5 },
+  { type: "Hits",           unit: "hits",    weight: 0.9 },
+  { type: "RBIs",           unit: "RBI",     weight: 0.8 },
+  { type: "Runs",           unit: "runs",    weight: 0.7 },
+  { type: "Home Runs",      unit: "HR",      weight: 0.6 },
+  { type: "Walks",          unit: "BB",      weight: 0.5 },
 ];
 
 const MLB_PITCHER_TEMPLATES: PropTemplate[] = [
@@ -124,7 +127,8 @@ const nbaRosterCache = new Map<string, { ts: number; players: NbaRosterPlayer[] 
 const ROSTER_TTL = 30 * 60 * 1000;
 
 let propsCache: { ts: number; props: PlayerProp[] } | null = null;
-const PROPS_TTL = 60 * 1000;
+// Reduced from 60s → 30s so data stays fresh during active game windows
+const PROPS_TTL = 30 * 1000;
 // When upstream (ESPN) fails, we'd rather show 30-min-stale player data than
 // an empty page. PROPS_STALE_MAX is the upper bound on how stale a fallback
 // cache may be served. After this it returns []. The deployed app was hitting
@@ -576,7 +580,15 @@ function buildPropFromRealData(input: PropInputs): PlayerProp | null {
   // experiments with 25/75 and 20/80 cutoffs both gutted NBA categories
   // (only 2-3 stat lines per player) because chooseBalancedLine's discrete
   // 0.5-step search rarely lands hit rates inside narrow boundary bands.
+  // Gate 1: Player has zero production across last 10 games → skip entirely.
   if (last10.length >= 5 && Math.max(...last10) === 0) return null;
+
+  // Gate 2: Minimum sample — need at least 5 real data points to model a line.
+  if (last10.length < 5) return null;
+
+  // Gate 3: Minimum line value — props below 0.5 are not offered on real apps.
+  const tentativeMax = Math.max(...last10);
+  if (tentativeMax < 0.5) return null;
 
   // Model line: pick the line whose historical hit rate is closest to 50%
   // (sportsbook-style "split the action"), not the raw rounded mean. This is
@@ -611,28 +623,45 @@ function buildPropFromRealData(input: PropInputs): PlayerProp | null {
   let edgeScore = Math.min(10, gapScore + hitScore + consScore + trendBoost);
   edgeScore = Math.round(edgeScore * 10) / 10;
 
-  // Win probability — anchor on real hitRate10, dampened by consistency, trend-nudged,
-  // then nudged by REAL factor impacts at half weight.
-  const sideHitRate = isOver ? hitRate10 : 1 - hitRate10;
-  const consistencyWeight = 0.5 + consistency * 0.5;
-  let winProbRaw = 50 + (sideHitRate * 100 - 50) * consistencyWeight;
-  if ((trend === "up" && isOver) || (trend === "down" && !isOver)) winProbRaw += 3;
-  if ((trend === "down" && isOver) || (trend === "up" && !isOver)) winProbRaw -= 3;
+  // Win probability — blended L5/L10 hit rate anchor, consistency-dampened,
+  // trend-nudged, then factor-adjusted at half weight.
+  const sideHitRate10 = isOver ? hitRate10 : 1 - hitRate10;
+  const sideHitRate5  = isOver ? hitRate5  : 1 - hitRate5;
+
+  // Blend: weight recent form (L5) at 60%, season form (L10) at 40%.
+  const blendedHitRate = sideHitRate5 * 0.6 + sideHitRate10 * 0.4;
+
+  // Consistency penalty: erratic players get pulled toward 50.
+  const consistencyWeight = 0.7 + consistency * 0.3;
+  let winProbRaw = 50 + (blendedHitRate * 100 - 50) * consistencyWeight;
+
+  // Trend nudge (±4 instead of ±3)
+  if ((trend === "up"   && isOver)  || (trend === "down" && !isOver)) winProbRaw += 4;
+  if ((trend === "down" && isOver)  || (trend === "up"   && !isOver)) winProbRaw -= 4;
 
   const factors: PropFactors = {
     weather: input.weatherFactor,
     opponent: input.opponentFactor,
     h2h: input.h2hFactor,
   };
-  const factorImpact = (factors.weather?.impact ?? 0) + factors.opponent.impact + factors.h2h.impact;
-  const winProbability = Math.round(Math.min(92, Math.max(28, winProbRaw + factorImpact * 0.5)));
+
+  // Factor impact: H2H weighted highest (most predictive), others at half.
+  const factorImpact =
+    (factors.weather?.impact ?? 0) * 0.5 +
+    factors.opponent.impact * 0.5 +
+    factors.h2h.impact * 0.75;
+
+  // Tighter clamp: 32–88 instead of 28–92 (no unrealistic 92% claims).
+  const winProbability = Math.round(Math.min(88, Math.max(32, winProbRaw + factorImpact)));
 
   let recommendation: PlayerProp["recommendation"];
   let action: PlayerProp["action"];
-  if (edgeScore >= 8 && isOver) { recommendation = "Strong Over"; action = "Strong Play"; }
-  else if (edgeScore >= 8 && !isOver) { recommendation = "Strong Under"; action = "Strong Play"; }
-  else if (edgeScore >= 6.5 && isOver) { recommendation = "Lean Over"; action = "Lean"; }
-  else if (edgeScore >= 6.5 && !isOver) { recommendation = "Lean Under"; action = "Lean"; }
+  // Strong Plays additionally require winProbability >= 68.
+  const isHighConf = winProbability >= 68;
+  if (edgeScore >= 8.0 && isOver  && isHighConf) { recommendation = "Strong Over";  action = "Strong Play"; }
+  else if (edgeScore >= 8.0 && !isOver && isHighConf) { recommendation = "Strong Under"; action = "Strong Play"; }
+  else if (edgeScore >= 6.5 && isOver)  { recommendation = "Lean Over";   action = "Lean"; }
+  else if (edgeScore >= 6.5 && !isOver) { recommendation = "Lean Under";  action = "Lean"; }
   else if (edgeScore < 4.5 && Math.abs(lineGap) < sd * 0.1) {
     recommendation = isOver ? "Lean Under" : "Lean Over";
     action = "Trap Line";
@@ -652,7 +681,19 @@ function buildPropFromRealData(input: PropInputs): PlayerProp | null {
   if (factors.opponent.rating === "Elite" && isOver) redFlags.push(`Tough matchup vs ${opponent.abbreviation}`);
   if (input.experienceYears > 0 && input.experienceYears < 2) redFlags.push("Small career sample");
 
-  const reasoning = `Real last-${last10.length} avg ${avg10.toFixed(1)} ${template.unit}, last-5 ${avg5.toFixed(1)} (model line ${line}). ${factors.opponent.note} ${factors.weather ? factors.weather.note + " " : ""}${factors.h2h.note}`;
+  const trendPhrase = trend === "up"
+    ? "trending up over last 5"
+    : trend === "down"
+    ? "trending down over last 5"
+    : "form is flat";
+  const hitPct = Math.round((isOver ? hitRate5 : 1 - hitRate5) * 100);
+  const reasoning = [
+    `Cleared this line in ${hitPct}% of last ${last5.length} games (avg ${avg5.toFixed(1)} ${template.unit}, line ${line}).`,
+    `Season avg ${avg10.toFixed(1)}, ${trendPhrase}.`,
+    factors.opponent.note,
+    factors.weather ? factors.weather.note : null,
+    factors.h2h.meetings > 0 ? factors.h2h.note : null,
+  ].filter(Boolean).join(" ");
 
   const riskWarning = action === "Trap Line"
     ? "Potential trap line. Sharp money typically fades the obvious side."
@@ -721,8 +762,8 @@ async function processMlbGame(
   const isPitcher = (pos: string) => pos === "SP" || pos === "P";
   const isTwoWay = (pos: string) => pos === "TWP";
 
-  const awayBatters = pickMlbPlayers(awayRoster, game.awayTeam.abbreviation, 6, (p) => isBatter(p) || isTwoWay(p));
-  const homeBatters = pickMlbPlayers(homeRoster, game.homeTeam.abbreviation, 6, (p) => isBatter(p) || isTwoWay(p));
+  const awayBatters = pickMlbPlayers(awayRoster, game.awayTeam.abbreviation, 7, (p) => isBatter(p) || isTwoWay(p));
+  const homeBatters = pickMlbPlayers(homeRoster, game.homeTeam.abbreviation, 7, (p) => isBatter(p) || isTwoWay(p));
   const awayPitchers = pickMlbPlayers(awayRoster, game.awayTeam.abbreviation, 1, isPitcher);
   const homePitchers = pickMlbPlayers(homeRoster, game.homeTeam.abbreviation, 1, isPitcher);
 
@@ -852,8 +893,9 @@ async function processNbaGame(
     fetchNbaRoster(game.homeTeam.id),
   ]);
 
-  const awayPicks = pickNbaPlayers(awayRoster, game.awayTeam.abbreviation, 4);
-  const homePicks = pickNbaPlayers(homeRoster, game.homeTeam.abbreviation, 4);
+  // 5 players per team (was 4) — surfaces more star/starter options per game.
+  const awayPicks = pickNbaPlayers(awayRoster, game.awayTeam.abbreviation, 5);
+  const homePicks = pickNbaPlayers(homeRoster, game.homeTeam.abbreviation, 5);
 
   type NbaCtx = { player: NbaRosterPlayer; isHome: boolean; oppTeamId: string; oppAbbr: string };
   const ctxs: NbaCtx[] = [
@@ -948,13 +990,16 @@ setInterval(() => { void refreshTierWeights(); }, 60 * 60 * 1000);
 function pickBestProp(props: PlayerProp[]): PlayerProp {
   const isBalanced = (p: PlayerProp) => p.hitRate10 >= 0.3 && p.hitRate10 <= 0.7;
   const hasVolume = (p: PlayerProp) => p.line >= 1;
-  // Weighted pick within a tier: winProbability × tier-weight (auto-tuned).
+  // Score = winProbability × tier weight × volume bonus.
+  // High-volume props (line >= 2) get a 5% boost so 22.5 Points beats
+  // 0.5 Home Runs when both have similar win rates.
+  const score = (p: PlayerProp) =>
+    p.winProbability *
+    tierWeights[classifyTier(p)] *
+    (p.line >= 2 ? 1.05 : 1.0);
+
   const best = (arr: PlayerProp[]) =>
-    arr.reduce((b, p) => {
-      const wB = b.winProbability * tierWeights[classifyTier(b)];
-      const wP = p.winProbability * tierWeights[classifyTier(p)];
-      return wP > wB ? p : b;
-    });
+    arr.reduce((b, p) => (score(p) > score(b) ? p : b));
 
   const tier1 = props.filter((p) => isBalanced(p) && hasVolume(p));
   if (tier1.length) return best(tier1);
@@ -969,14 +1014,37 @@ function pickBestProp(props: PlayerProp[]): PlayerProp {
 }
 
 // ── Public API ─────────────────────────────────────────────────────────────
+// In-flight dedupe: when multiple concurrent callers (props/alerts/live-edge/
+// dashboard polling routes) all hit a cold cache simultaneously, share a single
+// upstream fetch instead of stampeding ESPN/MLB N times in parallel.
+let inFlight: Promise<PlayerProp[]> | null = null;
+
 export async function getTodayProps(sport?: string): Promise<PlayerProp[]> {
   if (propsCache && Date.now() - propsCache.ts < PROPS_TTL) {
     const all = propsCache.props;
     return sport && sport !== "ALL" ? all.filter((p) => p.sport === sport) : all;
   }
+  if (inFlight) {
+    const all = await inFlight;
+    return sport && sport !== "ALL" ? all.filter((p) => p.sport === sport) : all;
+  }
+  inFlight = (async (): Promise<PlayerProp[]> => {
+    try {
+      return await buildTodayProps();
+    } finally {
+      inFlight = null;
+    }
+  })();
+  const all = await inFlight;
+  return sport && sport !== "ALL" ? all.filter((p) => p.sport === sport) : all;
+}
 
+async function buildTodayProps(): Promise<PlayerProp[]> {
   const { games, source } = await getTodayGames("ALL");
-  const eligible = games.filter((g) => g.homeTeam.id && g.awayTeam.id);
+  // Exclude finished games — no point generating props for games that ended.
+  const eligible = games.filter(
+    (g) => g.homeTeam.id && g.awayTeam.id && g.status !== "final",
+  );
 
   // CRITICAL: when ESPN times out (source==="error") we get back an empty
   // games list. Do NOT overwrite a healthy cache with that empty result.
@@ -991,8 +1059,7 @@ export async function getTodayProps(sport?: string): Promise<PlayerProp[]> {
         { ageMin, count: propsCache.props.length },
         "ESPN scoreboard failed; serving stale propsCache instead of empty",
       );
-      const all = propsCache.props;
-      return sport && sport !== "ALL" ? all.filter((p) => p.sport === sport) : all;
+      return propsCache.props;
     }
     logger.warn("ESPN scoreboard failed and no usable cache; returning empty props without caching so next request retries");
     return [];
@@ -1051,7 +1118,7 @@ export async function getTodayProps(sport?: string): Promise<PlayerProp[]> {
     })
     .catch((err) => logger.warn({ err: String(err) }, "trackRecord snapshot failed"));
 
-  return sport && sport !== "ALL" ? allProps.filter((p) => p.sport === sport) : allProps;
+  return allProps;
 }
 
 export async function getLiveEdges(): Promise<LiveEdge[]> {
@@ -1112,8 +1179,16 @@ export async function getLiveEdges(): Promise<LiveEdge[]> {
     });
   }
 
-  edges.sort((a, b) => Math.abs(b.liveEdgePercent) - Math.abs(a.liveEdgePercent));
-  return edges.slice(0, 12);
+  // Sort: Strong recommendations first, then by absolute edge magnitude.
+  const recRank = (r: string) =>
+    r.includes("Strong") ? 0 : r.includes("Lean") ? 1 : 2;
+  edges.sort((a, b) => {
+    const rankDiff = recRank(a.liveRecommendation) - recRank(b.liveRecommendation);
+    if (rankDiff !== 0) return rankDiff;
+    return Math.abs(b.liveEdgePercent) - Math.abs(a.liveEdgePercent);
+  });
+  // Cap raised 12 → 15 for busy multi-game windows.
+  return edges.slice(0, 15);
 }
 
 function estimateGameProgress(game: Game): number {

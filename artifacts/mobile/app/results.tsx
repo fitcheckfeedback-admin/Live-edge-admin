@@ -45,7 +45,7 @@ export default function ResultsScreen() {
         show({
           title: "Update failed",
           description: "Couldn't update result.",
-          variant: "destructive",
+          variant: "error",
         }),
     },
   });

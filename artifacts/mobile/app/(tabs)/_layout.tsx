@@ -8,22 +8,40 @@ import { useColors } from "@/hooks/useColors";
 function TabBadge({ count, color }: { count: number; color: string }) {
   if (count <= 0) return null;
   return (
-    <View
-      style={[
-        styles.badge,
-        { backgroundColor: color },
-      ]}
-    >
+    <View style={[styles.badge, { backgroundColor: color }]}>
       <Text
         style={{
-          color: "#001a0d",
+          color: "#000d07",
           fontFamily: "Inter_700Bold",
-          fontSize: 9,
+          fontSize: 8.5,
           fontVariant: ["tabular-nums"],
         }}
       >
         {count > 99 ? "99+" : count}
       </Text>
+    </View>
+  );
+}
+
+function TabIcon({
+  name,
+  color,
+  size,
+  badge,
+  badgeColor,
+}: {
+  name: keyof typeof Feather.glyphMap;
+  color: string;
+  size: number;
+  badge?: number;
+  badgeColor?: string;
+}) {
+  return (
+    <View style={{ alignItems: "center", justifyContent: "center" }}>
+      <Feather name={name} size={size} color={color} />
+      {badge !== undefined && badgeColor ? (
+        <TabBadge count={badge} color={badgeColor} />
+      ) : null}
     </View>
   );
 }
@@ -39,24 +57,36 @@ export default function TabLayout() {
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.mutedForeground,
         tabBarStyle: {
-          backgroundColor: colors.card,
+          backgroundColor: colors.backgroundElevated,
           borderTopColor: colors.cardBorder,
-          borderTopWidth: 0.5,
-          height: Platform.OS === "ios" ? 84 : 64,
-          paddingTop: 6,
+          borderTopWidth: 1,
+          height: Platform.OS === "ios" ? 88 : 68,
+          paddingTop: 8,
+          paddingBottom: Platform.OS === "ios" ? 26 : 10,
+          // Subtle shadow upward
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: -4 },
+          shadowOpacity: 0.4,
+          shadowRadius: 12,
+          elevation: 20,
         },
         tabBarLabelStyle: {
           fontFamily: "Inter_600SemiBold",
-          fontSize: 10.5,
+          fontSize: 10,
+          letterSpacing: 0.3,
+          marginTop: 2,
+        },
+        tabBarItemStyle: {
+          paddingTop: 2,
         },
       }}
     >
       <Tabs.Screen
         name="index"
         options={{
-          title: "Picks",
+          title: "Board",
           tabBarIcon: ({ color, size }) => (
-            <Feather name="star" size={size} color={color} />
+            <TabIcon name="zap" color={color} size={size} />
           ),
         }}
       />
@@ -65,19 +95,22 @@ export default function TabLayout() {
         options={{
           title: "Games",
           tabBarIcon: ({ color, size }) => (
-            <Feather name="calendar" size={size} color={color} />
+            <TabIcon name="activity" color={color} size={size} />
           ),
         }}
       />
       <Tabs.Screen
         name="slip"
         options={{
-          title: "My Picks",
+          title: "My Slip",
           tabBarIcon: ({ color, size }) => (
-            <View>
-              <Feather name="check-square" size={size} color={color} />
-              <TabBadge count={slip.count} color={colors.primary} />
-            </View>
+            <TabIcon
+              name="bookmark"
+              color={color}
+              size={size}
+              badge={slip.count}
+              badgeColor={colors.primary}
+            />
           ),
         }}
       />
@@ -86,7 +119,7 @@ export default function TabLayout() {
         options={{
           title: "More",
           tabBarIcon: ({ color, size }) => (
-            <Feather name="grid" size={size} color={color} />
+            <TabIcon name="grid" color={color} size={size} />
           ),
         }}
       />
@@ -97,12 +130,12 @@ export default function TabLayout() {
 const styles = StyleSheet.create({
   badge: {
     position: "absolute",
-    top: -6,
+    top: -7,
     right: -10,
-    minWidth: 16,
-    height: 16,
-    borderRadius: 8,
-    paddingHorizontal: 4,
+    minWidth: 15,
+    height: 15,
+    borderRadius: 7.5,
+    paddingHorizontal: 3,
     alignItems: "center",
     justifyContent: "center",
   },

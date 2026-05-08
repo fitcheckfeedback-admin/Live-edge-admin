@@ -12,6 +12,7 @@ interface Props {
   refreshing?: boolean;
   showBack?: boolean;
   onBack?: () => void;
+  subtitle?: string;
 }
 
 export function AppHeader({
@@ -21,6 +22,7 @@ export function AppHeader({
   refreshing,
   showBack,
   onBack,
+  subtitle,
 }: Props) {
   const colors = useColors();
   const insets = useSafeAreaInsets();
@@ -30,12 +32,15 @@ export function AppHeader({
       style={[
         styles.wrap,
         {
-          paddingTop: insets.top + 6,
+          paddingTop: insets.top + 4,
           backgroundColor: colors.background,
           borderBottomColor: colors.cardBorder,
         },
       ]}
     >
+      {/* Accent line at top */}
+      <View style={[styles.accentLine, { backgroundColor: colors.primary }]} />
+
       <View style={styles.row}>
         {showBack ? (
           <Pressable
@@ -43,37 +48,65 @@ export function AppHeader({
             hitSlop={10}
             style={({ pressed }) => [
               styles.iconBtn,
-              { borderColor: colors.cardBorder, opacity: pressed ? 0.7 : 1 },
+              {
+                borderColor: colors.cardBorder,
+                backgroundColor: colors.backgroundSurface,
+                opacity: pressed ? 0.7 : 1,
+              },
             ]}
           >
-            <Feather name="arrow-left" size={18} color={colors.foreground} />
+            <Feather name="arrow-left" size={17} color={colors.foreground} />
           </Pressable>
         ) : (
           <View
             style={[
-              styles.iconBtn,
+              styles.logoMark,
               {
-                borderColor: "rgba(34,197,94,0.4)",
-                backgroundColor: "rgba(34,197,94,0.12)",
+                borderColor: colors.cardBorderActive,
+                backgroundColor: colors.primaryGlow,
               },
             ]}
           >
-            <Feather name="activity" size={16} color={colors.primary} />
+            <Feather name="zap" size={15} color={colors.primary} />
           </View>
         )}
-        <Text
-          style={[styles.title, { color: colors.foreground }]}
-          numberOfLines={1}
-        >
-          {title}
-        </Text>
+
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text
+            style={[styles.title, { color: colors.foreground }]}
+            numberOfLines={1}
+          >
+            {title}
+          </Text>
+          {subtitle ? (
+            <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
+              {subtitle}
+            </Text>
+          ) : null}
+        </View>
 
         <View style={styles.rightCluster}>
           {liveCount > 0 && (
-            <View style={styles.liveChip}>
+            <View
+              style={[
+                styles.livePill,
+                {
+                  backgroundColor: colors.primaryGlow,
+                  borderColor: colors.cardBorderActive,
+                },
+              ]}
+            >
               <PulseDot />
-              <Text style={{ color: colors.primary, fontFamily: "Inter_700Bold", fontSize: 11 }}>
-                {liveCount}
+              <Text
+                style={{
+                  color: colors.primary,
+                  fontFamily: "Inter_700Bold",
+                  fontSize: 11,
+                  fontVariant: ["tabular-nums"],
+                  letterSpacing: 0.5,
+                }}
+              >
+                {liveCount} LIVE
               </Text>
             </View>
           )}
@@ -86,14 +119,15 @@ export function AppHeader({
                 styles.iconBtn,
                 {
                   borderColor: colors.cardBorder,
-                  opacity: pressed || refreshing ? 0.55 : 1,
+                  backgroundColor: colors.backgroundSurface,
+                  opacity: pressed || refreshing ? 0.45 : 1,
                 },
               ]}
             >
               <Feather
                 name="refresh-cw"
-                size={16}
-                color={colors.foreground}
+                size={15}
+                color={colors.mutedForegroundBright}
               />
             </Pressable>
           ) : null}
@@ -105,17 +139,38 @@ export function AppHeader({
 
 const styles = StyleSheet.create({
   wrap: { borderBottomWidth: 1 },
+  accentLine: {
+    height: 2,
+    width: 48,
+    marginLeft: 16,
+    marginBottom: 2,
+    borderRadius: 1,
+    opacity: 0.85,
+  },
   row: {
     paddingHorizontal: 14,
-    paddingBottom: 10,
+    paddingBottom: 12,
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
   },
   title: {
-    flex: 1,
     fontFamily: "Inter_700Bold",
-    fontSize: 17,
+    fontSize: 18,
+    letterSpacing: -0.3,
+  },
+  subtitle: {
+    fontFamily: "Inter_400Regular",
+    fontSize: 11,
+    marginTop: 1,
+  },
+  logoMark: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    alignItems: "center",
+    justifyContent: "center",
   },
   iconBtn: {
     width: 34,
@@ -126,13 +181,13 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   rightCluster: { flexDirection: "row", alignItems: "center", gap: 8 },
-  liveChip: {
+  livePill: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    paddingHorizontal: 8,
+    gap: 5,
+    paddingHorizontal: 10,
     height: 28,
     borderRadius: 14,
-    backgroundColor: "rgba(34,197,94,0.1)",
+    borderWidth: 1,
   },
 });

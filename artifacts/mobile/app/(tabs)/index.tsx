@@ -50,6 +50,32 @@ function groupPropsByPlayer(props: any[]): PlayerGroup[] {
   );
 }
 
+function StatTile({
+  label,
+  value,
+  accent,
+}: {
+  label: string;
+  value: string | number;
+  accent?: boolean;
+}) {
+  const colors = useColors();
+  return (
+    <View style={statStyles.tile}>
+      <Text style={[statStyles.val, { color: accent ? colors.primary : colors.foreground }]}>
+        {value}
+      </Text>
+      <Text style={[statStyles.lbl, { color: colors.mutedForeground }]}>{label}</Text>
+    </View>
+  );
+}
+
+const statStyles = StyleSheet.create({
+  tile: { flex: 1, alignItems: "center" },
+  val: { fontFamily: "Inter_700Bold", fontSize: 24, fontVariant: ["tabular-nums"] },
+  lbl: { fontFamily: "Inter_700Bold", fontSize: 9, letterSpacing: 1.3, marginTop: 3 },
+});
+
 export default function PicksScreen() {
   const colors = useColors();
   const slip = useBetSlip();
@@ -75,7 +101,8 @@ export default function PicksScreen() {
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       <AppHeader
-        title="Best Picks"
+        title="Edge Board"
+        subtitle={todayLabel()}
         liveCount={live ? summary?.totalGamesToday ?? 0 : 0}
         onRefresh={() => refetch()}
         refreshing={isRefetching}
@@ -86,41 +113,50 @@ export default function PicksScreen() {
         keyExtractor={(g) => g.playerId}
         contentContainerStyle={{ padding: 14, paddingBottom: 110, gap: 10 }}
         ListHeaderComponent={
-          <View style={{ gap: 12, marginBottom: 8 }}>
-            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-              <View>
-                <Text style={[styles.dateText, { color: colors.mutedForeground }]}>
-                  {todayLabel().toUpperCase()}
-                </Text>
-                <Text style={[styles.headline, { color: colors.foreground }]}>
-                  Today's Edge Board
-                </Text>
-              </View>
-              {summary ? (
+          <View style={{ gap: 12, marginBottom: 4 }}>
+            {/* Stats hero card */}
+            {summary ? (
+              <View
+                style={[
+                  styles.heroCard,
+                  {
+                    backgroundColor: colors.card,
+                    borderColor: colors.cardBorder,
+                  },
+                ]}
+              >
+                {/* Subtle green top stripe */}
                 <View
                   style={[
-                    styles.statBubble,
-                    {
-                      backgroundColor: "rgba(34,197,94,0.1)",
-                      borderColor: "rgba(34,197,94,0.4)",
-                    },
+                    styles.heroStripe,
+                    { backgroundColor: colors.primary },
                   ]}
-                >
-                  <Feather name="zap" size={12} color={colors.primary} />
-                  <Text
-                    style={{
-                      color: colors.primary,
-                      fontFamily: "Inter_700Bold",
-                      fontSize: 12,
-                      fontVariant: ["tabular-nums"],
-                    }}
-                  >
-                    {summary.strongPlays} strong
-                  </Text>
+                />
+                <View style={styles.heroInner}>
+                  <StatTile label="GAMES TODAY" value={summary.totalGamesToday} />
+                  <View style={[styles.heroDivider, { backgroundColor: colors.cardBorder }]} />
+                  <StatTile label="STRONG PLAYS" value={summary.strongPlays} accent />
+                  <View style={[styles.heroDivider, { backgroundColor: colors.cardBorder }]} />
+                  <StatTile label="TOTAL PROPS" value={summary.totalProps} />
+                  <View style={[styles.heroDivider, { backgroundColor: colors.cardBorder }]} />
+                  <StatTile label="AVG EDGE" value={summary.avgEdgeScore.toFixed(1)} />
                 </View>
-              ) : null}
-            </View>
+              </View>
+            ) : null}
+
+            {/* Filter row */}
             <SportFilter value={sport} onChange={setSport} />
+
+            {/* Section label */}
+            <View style={styles.sectionRow}>
+              <View style={[styles.sectionDot, { backgroundColor: colors.primary }]} />
+              <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
+                RANKED BY EDGE SCORE
+              </Text>
+              <Text style={[styles.countBadge, { color: colors.mutedForeground }]}>
+                {grouped.length} players
+              </Text>
+            </View>
           </View>
         }
         renderItem={({ item }) => (
@@ -134,12 +170,12 @@ export default function PicksScreen() {
           isLoading ? (
             <View style={{ gap: 10 }}>
               {[1, 2, 3, 4].map((i) => (
-                <SkeletonCard key={i} height={150} />
+                <SkeletonCard key={i} height={160} />
               ))}
             </View>
           ) : (
             <EmptyState
-              icon="search"
+              icon="zap-off"
               title="No props for this filter"
               description="Try a different sport or pull to refresh."
             />
@@ -166,23 +202,39 @@ export default function PicksScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  dateText: {
-    fontFamily: "Inter_700Bold",
-    fontSize: 10.5,
-    letterSpacing: 1.4,
+  heroCard: {
+    borderRadius: 16,
+    borderWidth: 1,
+    overflow: "hidden",
   },
-  headline: {
-    fontFamily: "Inter_700Bold",
-    fontSize: 22,
-    marginTop: 2,
+  heroStripe: {
+    height: 3,
+    opacity: 0.7,
   },
-  statBubble: {
+  heroInner: {
+    flexDirection: "row",
+    paddingVertical: 16,
+    paddingHorizontal: 4,
+  },
+  heroDivider: { width: 1, marginVertical: 4 },
+  sectionRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 999,
-    borderWidth: 1,
+    gap: 8,
+    paddingHorizontal: 2,
+  },
+  sectionDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  sectionLabel: {
+    fontFamily: "Inter_700Bold",
+    fontSize: 10,
+    letterSpacing: 1.4,
+    flex: 1,
+  },
+  countBadge: {
+    fontSize: 11,
   },
 });

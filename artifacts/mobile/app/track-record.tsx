@@ -234,7 +234,7 @@ export default function TrackRecordScreen() {
         show({
           title: "Grading failed",
           description: "Couldn't grade pending picks.",
-          variant: "destructive",
+          variant: "error",
         }),
     },
   });

@@ -19,119 +19,151 @@ function GameCard({ game }: { game: any }) {
   const isFinal = game.status === "final";
   const startTime = formatTime(game.startTime);
 
+  const homeWinning =
+    (isLive || isFinal) &&
+    (game.homeScore ?? 0) > (game.awayScore ?? 0);
+  const awayWinning =
+    (isLive || isFinal) &&
+    (game.awayScore ?? 0) > (game.homeScore ?? 0);
+
   return (
     <View
       style={[
         styles.card,
         {
           backgroundColor: colors.card,
-          borderColor: isLive ? "rgba(34,197,94,0.45)" : colors.cardBorder,
+          borderColor: isLive ? colors.cardBorderActive : colors.cardBorder,
           borderWidth: isLive ? 1.5 : 1,
+        },
+        isLive && {
+          shadowColor: colors.primary,
+          shadowOpacity: 0.12,
+          shadowRadius: 12,
+          shadowOffset: { width: 0, height: 0 },
         },
       ]}
     >
-      {/* Top row */}
-      <View style={styles.topRow}>
-        <View style={[styles.sportBadge, { borderColor: colors.cardBorder }]}>
-          <Text
-            style={{
-              color: colors.mutedForeground,
-              fontSize: 9.5,
-              fontFamily: "Inter_700Bold",
-              letterSpacing: 1.2,
-            }}
-          >
+      {/* Header row: sport + status */}
+      <View style={styles.cardHeader}>
+        <View
+          style={[
+            styles.sportBadge,
+            {
+              backgroundColor: colors.backgroundSurface,
+              borderColor: colors.cardBorder,
+            },
+          ]}
+        >
+          <Text style={[styles.sportText, { color: colors.mutedForeground }]}>
             {game.sport}
           </Text>
         </View>
+
         {isLive ? (
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+          <View style={styles.liveRow}>
             <PulseDot />
-            <Text
-              style={{
-                color: colors.primary,
-                fontFamily: "Inter_700Bold",
-                fontSize: 11.5,
-              }}
-            >
+            <Text style={[styles.liveText, { color: colors.primary }]}>
               {game.period}
               {game.clock ? ` · ${game.clock}` : ""}
             </Text>
           </View>
         ) : isFinal ? (
-          <Text
-            style={{
-              color: colors.mutedForeground,
-              fontSize: 11,
-              fontFamily: "Inter_700Bold",
-              letterSpacing: 1.4,
-            }}
-          >
+          <Text style={[styles.finalText, { color: colors.mutedForeground }]}>
             FINAL
           </Text>
         ) : (
-          <Text style={{ color: colors.mutedForeground, fontSize: 11.5 }}>
-            {startTime}
-          </Text>
+          <View style={styles.timeRow}>
+            <Feather name="clock" size={10} color={colors.mutedForeground} />
+            <Text style={[styles.timeText, { color: colors.mutedForeground }]}>
+              {startTime}
+            </Text>
+          </View>
         )}
       </View>
 
-      {/* Away */}
+      {/* Divider */}
+      <View style={[styles.divider, { backgroundColor: colors.divider }]} />
+
+      {/* Away team */}
       <View style={styles.teamRow}>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 10, flex: 1 }}>
+        <View style={styles.teamLeft}>
           <TeamLogo
             logoUrl={game.awayTeam?.logoUrl}
             abbreviation={game.awayTeam?.abbreviation ?? "?"}
             color={game.awayTeam?.color}
-            size={32}
+            size={34}
           />
-          <Text
-            style={{ color: colors.foreground, fontFamily: "Inter_600SemiBold", fontSize: 14 }}
-            numberOfLines={1}
-          >
-            {game.awayTeam?.name ?? game.awayTeam?.abbreviation}
-          </Text>
+          <View>
+            <Text
+              style={[
+                styles.teamName,
+                {
+                  color: awayWinning ? colors.foreground : colors.mutedForegroundBright,
+                  fontFamily: awayWinning ? "Inter_700Bold" : "Inter_400Regular",
+                },
+              ]}
+              numberOfLines={1}
+            >
+              {game.awayTeam?.name ?? game.awayTeam?.abbreviation}
+            </Text>
+            <Text style={[styles.teamAbbr, { color: colors.mutedForeground }]}>
+              {game.awayTeam?.abbreviation} · AWAY
+            </Text>
+          </View>
         </View>
         {(isLive || isFinal) && (
           <Text
-            style={{
-              color: colors.foreground,
-              fontFamily: "Inter_700Bold",
-              fontSize: 22,
-              fontVariant: ["tabular-nums"],
-            }}
+            style={[
+              styles.score,
+              {
+                color: awayWinning ? colors.foreground : colors.mutedForeground,
+                fontFamily: awayWinning ? "Inter_700Bold" : "Inter_600SemiBold",
+              },
+            ]}
           >
-            {game.awayScore ?? "-"}
+            {game.awayScore ?? "—"}
           </Text>
         )}
       </View>
 
-      {/* Home */}
+      {/* Home team */}
       <View style={styles.teamRow}>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 10, flex: 1 }}>
+        <View style={styles.teamLeft}>
           <TeamLogo
             logoUrl={game.homeTeam?.logoUrl}
             abbreviation={game.homeTeam?.abbreviation ?? "?"}
             color={game.homeTeam?.color}
-            size={32}
+            size={34}
           />
-          <Text
-            style={{ color: colors.foreground, fontFamily: "Inter_600SemiBold", fontSize: 14 }}
-            numberOfLines={1}
-          >
-            {game.homeTeam?.name ?? game.homeTeam?.abbreviation}
-          </Text>
+          <View>
+            <Text
+              style={[
+                styles.teamName,
+                {
+                  color: homeWinning ? colors.foreground : colors.mutedForegroundBright,
+                  fontFamily: homeWinning ? "Inter_700Bold" : "Inter_400Regular",
+                },
+              ]}
+              numberOfLines={1}
+            >
+              {game.homeTeam?.name ?? game.homeTeam?.abbreviation}
+            </Text>
+            <Text style={[styles.teamAbbr, { color: colors.mutedForeground }]}>
+              {game.homeTeam?.abbreviation} · HOME
+            </Text>
+          </View>
         </View>
         {(isLive || isFinal) && (
           <Text
-            style={{
-              color: colors.foreground,
-              fontFamily: "Inter_700Bold",
-              fontSize: 22,
-              fontVariant: ["tabular-nums"],
-            }}
+            style={[
+              styles.score,
+              {
+                color: homeWinning ? colors.foreground : colors.mutedForeground,
+                fontFamily: homeWinning ? "Inter_700Bold" : "Inter_600SemiBold",
+              },
+            ]}
           >
-            {game.homeScore ?? "-"}
+            {game.homeScore ?? "—"}
           </Text>
         )}
       </View>
@@ -139,32 +171,75 @@ function GameCard({ game }: { game: any }) {
   );
 }
 
-function Section({
+function SectionHeader({
   title,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  games,
-  primary,
+  count,
+  accent,
 }: {
   title: string;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  games: any[];
-  primary?: boolean;
+  count: number;
+  accent?: boolean;
 }) {
   const colors = useColors();
-  if (games.length === 0) return null;
   return (
-    <View style={{ gap: 8 }}>
+    <View style={sectionStyles.row}>
+      <View
+        style={[
+          sectionStyles.dot,
+          {
+            backgroundColor: accent ? colors.primary : colors.mutedForeground,
+          },
+        ]}
+      />
       <Text
-        style={{
-          color: primary ? colors.primary : colors.mutedForeground,
-          fontFamily: "Inter_700Bold",
-          fontSize: 11,
-          letterSpacing: 1.4,
-          paddingHorizontal: 4,
-        }}
+        style={[
+          sectionStyles.title,
+          { color: accent ? colors.primary : colors.mutedForeground },
+        ]}
       >
         {title.toUpperCase()}
       </Text>
+      <View
+        style={[
+          sectionStyles.countBadge,
+          {
+            backgroundColor: accent ? colors.primaryGlow : colors.backgroundSurface,
+            borderColor: accent ? colors.cardBorderActive : colors.cardBorder,
+          },
+        ]}
+      >
+        <Text
+          style={[
+            sectionStyles.countText,
+            { color: accent ? colors.primary : colors.mutedForeground },
+          ]}
+        >
+          {count}
+        </Text>
+      </View>
+    </View>
+  );
+}
+
+const sectionStyles = StyleSheet.create({
+  row: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 2, marginBottom: 8 },
+  dot: { width: 6, height: 6, borderRadius: 3 },
+  title: { fontFamily: "Inter_700Bold", fontSize: 10.5, letterSpacing: 1.4, flex: 1 },
+  countBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  countText: { fontFamily: "Inter_700Bold", fontSize: 10, fontVariant: ["tabular-nums"] },
+});
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function Section({ title, games, primary }: { title: string; games: any[]; primary?: boolean }) {
+  if (games.length === 0) return null;
+  return (
+    <View style={{ gap: 8 }}>
+      <SectionHeader title={title} count={games.length} accent={primary} />
       {games.map((g) => <GameCard key={g.id} game={g} />)}
     </View>
   );
@@ -195,7 +270,8 @@ export default function GamesScreen() {
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       <AppHeader
-        title="Games Today"
+        title="Scoreboard"
+        subtitle="Today's games"
         liveCount={liveGames.length}
         onRefresh={() => refetch()}
         refreshing={isRefetching}
@@ -205,30 +281,24 @@ export default function GamesScreen() {
         keyExtractor={() => "wrap"}
         contentContainerStyle={{ padding: 14, paddingBottom: 110, gap: 16 }}
         ListHeaderComponent={
-          <View style={{ marginBottom: 4 }}>
+          <View style={{ marginBottom: 4, gap: 10 }}>
             <SportFilter value={sport} onChange={setSport} />
-            <Text
-              style={{
-                color: colors.mutedForeground,
-                fontSize: 11,
-                marginTop: 8,
-                fontVariant: ["tabular-nums"],
-              }}
-            >
-              <Feather name="clock" size={11} />
-              {"  "}
-              Last update{" "}
-              {liveData?.lastUpdated
-                ? new Date(liveData.lastUpdated).toLocaleTimeString()
-                : "—"}
-            </Text>
+            {liveData?.lastUpdated ? (
+              <View style={styles.updateRow}>
+                <View style={[styles.updateDot, { backgroundColor: colors.over }]} />
+                <Text style={[styles.updateText, { color: colors.mutedForeground }]}>
+                  Scores updated{" "}
+                  {new Date(liveData.lastUpdated).toLocaleTimeString()}
+                </Text>
+              </View>
+            ) : null}
           </View>
         }
         renderItem={() =>
           isLoading ? (
             <View style={{ gap: 10 }}>
               {[1, 2, 3].map((i) => (
-                <SkeletonCard key={i} height={130} />
+                <SkeletonCard key={i} height={140} />
               ))}
             </View>
           ) : games.length === 0 ? (
@@ -238,7 +308,7 @@ export default function GamesScreen() {
               description="There are no scheduled games for this filter."
             />
           ) : (
-            <View style={{ gap: 16 }}>
+            <View style={{ gap: 20 }}>
               <Section title="Live Now" games={liveGames} primary />
               <Section title="Upcoming" games={upcoming} />
               <Section title="Final" games={finals} />
@@ -261,11 +331,11 @@ export default function GamesScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1 },
   card: {
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 14,
     gap: 10,
   },
-  topRow: {
+  cardHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
@@ -273,13 +343,36 @@ const styles = StyleSheet.create({
   sportBadge: {
     paddingHorizontal: 8,
     paddingVertical: 3,
-    borderRadius: 4,
+    borderRadius: 5,
     borderWidth: 1,
   },
+  sportText: {
+    fontFamily: "Inter_700Bold",
+    fontSize: 9,
+    letterSpacing: 1.2,
+  },
+  liveRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+  liveText: { fontFamily: "Inter_700Bold", fontSize: 12 },
+  finalText: { fontFamily: "Inter_700Bold", fontSize: 10.5, letterSpacing: 1.5 },
+  timeRow: { flexDirection: "row", alignItems: "center", gap: 4 },
+  timeText: { fontSize: 12 },
+  divider: { height: 1 },
   teamRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: 8,
   },
+  teamLeft: { flexDirection: "row", alignItems: "center", gap: 10, flex: 1 },
+  teamName: { fontSize: 14.5, letterSpacing: -0.2 },
+  teamAbbr: { fontSize: 10, marginTop: 1 },
+  score: {
+    fontSize: 26,
+    fontVariant: ["tabular-nums"],
+    letterSpacing: -0.5,
+    minWidth: 36,
+    textAlign: "right",
+  },
+  updateRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+  updateDot: { width: 6, height: 6, borderRadius: 3 },
+  updateText: { fontSize: 11 },
 });

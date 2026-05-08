@@ -7,14 +7,86 @@ import { AppHeader } from "@/components/AppHeader";
 import { PulseDot } from "@/components/PulseDot";
 import { useColors } from "@/hooks/useColors";
 
-interface Item {
+interface MenuItem {
   href: "/live-edge" | "/alerts" | "/track-record" | "/results" | "/sources";
   icon: keyof typeof Feather.glyphMap;
   title: string;
   subtitle: string;
   badgeCount?: number;
-  badgeColor?: string;
   pulse?: boolean;
+  accentColor?: string;
+}
+
+function MenuCard({
+  item,
+  accentColor,
+}: {
+  item: MenuItem;
+  accentColor: string;
+}) {
+  const colors = useColors();
+  const hasBadge = (item.badgeCount ?? 0) > 0;
+
+  return (
+    <Link href={item.href} asChild>
+      <Pressable
+        style={({ pressed }) => [
+          styles.menuCard,
+          {
+            backgroundColor: colors.card,
+            borderColor: hasBadge ? `${accentColor}40` : colors.cardBorder,
+            opacity: pressed ? 0.88 : 1,
+            transform: [{ scale: pressed ? 0.985 : 1 }],
+          },
+        ]}
+      >
+        {/* Icon block */}
+        <View
+          style={[
+            styles.iconBlock,
+            {
+              backgroundColor: `${accentColor}14`,
+              borderColor: `${accentColor}30`,
+            },
+          ]}
+        >
+          <Feather name={item.icon} size={20} color={accentColor} />
+        </View>
+
+        {/* Text */}
+        <View style={{ flex: 1 }}>
+          <View style={styles.menuTitleRow}>
+            <Text style={[styles.menuTitle, { color: colors.foreground }]}>
+              {item.title}
+            </Text>
+            {item.pulse && <PulseDot />}
+          </View>
+          <Text
+            style={[styles.menuSubtitle, { color: colors.mutedForeground }]}
+            numberOfLines={1}
+          >
+            {item.subtitle}
+          </Text>
+        </View>
+
+        {/* Badge or chevron */}
+        {hasBadge ? (
+          <View
+            style={[
+              styles.badge,
+              { backgroundColor: accentColor },
+            ]}
+          >
+            <Text style={styles.badgeText}>
+              {(item.badgeCount ?? 0) > 99 ? "99+" : item.badgeCount}
+            </Text>
+          </View>
+        ) : (
+          <Feather name="chevron-right" size={17} color={colors.mutedForeground} />
+        )}
+      </Pressable>
+    </Link>
+  );
 }
 
 export default function MoreScreen() {
@@ -33,41 +105,50 @@ export default function MoreScreen() {
   const liveCount = live?.edges?.length ?? 0;
   const unreadAlerts = alertData?.alerts?.length ?? 0;
 
-  const items: Item[] = [
+  const menuItems: (MenuItem & { accentColor: string })[] = [
     {
       href: "/live-edge",
       icon: "activity",
       title: "Live Edge",
-      subtitle: liveCount > 0 ? `${liveCount} active live projection${liveCount === 1 ? "" : "s"}` : "Real-time in-game projections",
+      subtitle:
+        liveCount > 0
+          ? `${liveCount} active live projection${liveCount === 1 ? "" : "s"}`
+          : "Real-time in-game projections",
       badgeCount: liveCount,
-      badgeColor: colors.primary,
       pulse: liveCount > 0,
+      accentColor: colors.primary,
     },
     {
       href: "/alerts",
       icon: "bell",
       title: "Alerts",
-      subtitle: unreadAlerts > 0 ? `${unreadAlerts} unread alert${unreadAlerts === 1 ? "" : "s"}` : "Edge spikes, late line moves",
+      subtitle:
+        unreadAlerts > 0
+          ? `${unreadAlerts} unread alert${unreadAlerts === 1 ? "" : "s"}`
+          : "Edge spikes & late line moves",
       badgeCount: unreadAlerts,
-      badgeColor: colors.accent,
+      accentColor: colors.accent,
     },
     {
       href: "/track-record",
       icon: "bar-chart-2",
       title: "Track Record",
       subtitle: "Auto-graded picks and tier hit rates",
+      accentColor: "#60a5fa",
     },
     {
       href: "/results",
       icon: "list",
       title: "Results",
       subtitle: "Full result history with CSV export",
+      accentColor: "#a78bfa",
     },
     {
       href: "/sources",
       icon: "database",
       title: "Data Sources",
       subtitle: "Provider status and methodology",
+      accentColor: colors.mutedForegroundBright,
     },
   ];
 
@@ -75,157 +156,82 @@ export default function MoreScreen() {
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       <AppHeader title="More" />
       <ScrollView contentContainerStyle={{ padding: 14, paddingBottom: 110, gap: 16 }}>
-        {/* Hero stats */}
+
+        {/* Stats strip */}
         {summary ? (
           <View
             style={[
-              styles.heroGrid,
+              styles.statsStrip,
               { backgroundColor: colors.card, borderColor: colors.cardBorder },
             ]}
           >
-            <View style={styles.heroCell}>
-              <Text style={[styles.heroLbl, { color: colors.mutedForeground }]}>GAMES</Text>
-              <Text style={[styles.heroVal, { color: colors.foreground }]}>
-                {summary.totalGamesToday}
-              </Text>
-            </View>
-            <View style={[styles.heroCell, { borderLeftColor: colors.cardBorder, borderLeftWidth: 1 }]}>
-              <Text style={[styles.heroLbl, { color: colors.mutedForeground }]}>STRONG</Text>
-              <Text style={[styles.heroVal, { color: colors.primary }]}>
-                {summary.strongPlays}
-              </Text>
-            </View>
-            <View style={[styles.heroCell, { borderLeftColor: colors.cardBorder, borderLeftWidth: 1 }]}>
-              <Text style={[styles.heroLbl, { color: colors.mutedForeground }]}>PROPS</Text>
-              <Text style={[styles.heroVal, { color: colors.foreground }]}>
-                {summary.totalProps}
-              </Text>
-            </View>
-            <View style={[styles.heroCell, { borderLeftColor: colors.cardBorder, borderLeftWidth: 1 }]}>
-              <Text style={[styles.heroLbl, { color: colors.mutedForeground }]}>EDGE</Text>
-              <Text style={[styles.heroVal, { color: colors.accent }]}>
-                {summary.avgEdgeScore.toFixed(1)}
-              </Text>
+            <View style={[styles.statsStripe, { backgroundColor: colors.primary }]} />
+            <View style={styles.statsRow}>
+              {[
+                { label: "GAMES", value: summary.totalGamesToday, color: colors.foreground },
+                { label: "STRONG", value: summary.strongPlays, color: colors.primary },
+                { label: "PROPS", value: summary.totalProps, color: colors.foreground },
+                { label: "AVG EDGE", value: summary.avgEdgeScore.toFixed(1), color: colors.accent },
+              ].map((s, i, arr) => (
+                <View key={s.label} style={{ flexDirection: "row", flex: 1 }}>
+                  <View style={[styles.statCell]}>
+                    <Text style={[styles.statVal, { color: s.color }]}>{s.value}</Text>
+                    <Text style={[styles.statLbl, { color: colors.mutedForeground }]}>{s.label}</Text>
+                  </View>
+                  {i < arr.length - 1 && (
+                    <View style={[styles.statDiv, { backgroundColor: colors.cardBorder }]} />
+                  )}
+                </View>
+              ))}
             </View>
           </View>
         ) : null}
 
+        {/* Section label */}
+        <View style={styles.sectionRow}>
+          <View style={[styles.sectionDot, { backgroundColor: colors.primary }]} />
+          <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
+            TOOLS &amp; ANALYTICS
+          </Text>
+        </View>
+
         {/* Menu items */}
         <View style={{ gap: 10 }}>
-          {items.map((it) => (
-            <Link key={it.href} href={it.href} asChild>
-              <Pressable
-                style={({ pressed }) => [
-                  styles.menuItem,
-                  {
-                    backgroundColor: colors.card,
-                    borderColor: colors.cardBorder,
-                    opacity: pressed ? 0.85 : 1,
-                  },
-                ]}
-              >
-                <View
-                  style={[
-                    styles.menuIcon,
-                    {
-                      backgroundColor: "rgba(34,197,94,0.12)",
-                      borderColor: "rgba(34,197,94,0.3)",
-                    },
-                  ]}
-                >
-                  <Feather name={it.icon} size={20} color={colors.primary} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                    <Text
-                      style={{
-                        color: colors.foreground,
-                        fontFamily: "Inter_700Bold",
-                        fontSize: 15,
-                      }}
-                    >
-                      {it.title}
-                    </Text>
-                    {it.pulse && <PulseDot />}
-                  </View>
-                  <Text
-                    style={{
-                      color: colors.mutedForeground,
-                      fontSize: 12,
-                      marginTop: 2,
-                    }}
-                  >
-                    {it.subtitle}
-                  </Text>
-                </View>
-                {it.badgeCount && it.badgeCount > 0 ? (
-                  <View
-                    style={[
-                      styles.badge,
-                      {
-                        backgroundColor: it.badgeColor ?? colors.primary,
-                      },
-                    ]}
-                  >
-                    <Text
-                      style={{
-                        color: "#001a0d",
-                        fontFamily: "Inter_700Bold",
-                        fontSize: 11,
-                        fontVariant: ["tabular-nums"],
-                      }}
-                    >
-                      {it.badgeCount > 99 ? "99+" : it.badgeCount}
-                    </Text>
-                  </View>
-                ) : null}
-                <Feather name="chevron-right" size={18} color={colors.mutedForeground} />
-              </Pressable>
-            </Link>
+          {menuItems.map((item) => (
+            <MenuCard key={item.href} item={item} accentColor={item.accentColor} />
           ))}
         </View>
 
-        {/* Lounge promo card */}
+        {/* Lounge card */}
         <View
           style={[
-            styles.loungePromo,
-            {
-              backgroundColor: colors.card,
-              borderColor: colors.cardBorder,
-            },
+            styles.loungeCard,
+            { backgroundColor: colors.card, borderColor: colors.cardBorder },
           ]}
         >
           <View
             style={[
-              styles.menuIcon,
+              styles.iconBlock,
               {
-                backgroundColor: "rgba(251,191,36,0.12)",
-                borderColor: "rgba(251,191,36,0.3)",
+                backgroundColor: "rgba(245,158,11,0.12)",
+                borderColor: "rgba(245,158,11,0.28)",
               },
             ]}
           >
             <Feather name="message-circle" size={20} color={colors.accent} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={{ color: colors.foreground, fontFamily: "Inter_700Bold", fontSize: 15 }}>
+            <Text style={[styles.menuTitle, { color: colors.foreground }]}>
               The Lounge
             </Text>
-            <Text style={{ color: colors.mutedForeground, fontSize: 12, marginTop: 2 }}>
-              Tap the chat bubble (bottom right) on any screen to talk picks with other users.
+            <Text style={[styles.menuSubtitle, { color: colors.mutedForeground }]}>
+              Chat picks with other users — tap the bubble in the bottom right corner.
             </Text>
           </View>
         </View>
 
-        <Text
-          style={{
-            color: colors.mutedForeground,
-            fontSize: 10,
-            textAlign: "center",
-            opacity: 0.55,
-            marginTop: 8,
-            letterSpacing: 1.2,
-          }}
-        >
+        {/* Disclaimer */}
+        <Text style={[styles.disclaimer, { color: colors.mutedForeground }]}>
           FOR RESEARCH PURPOSES ONLY · NOT GAMBLING ADVICE
         </Text>
       </ScrollView>
@@ -235,39 +241,43 @@ export default function MoreScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  heroGrid: {
-    flexDirection: "row",
+  statsStrip: {
+    borderRadius: 16,
     borderWidth: 1,
-    borderRadius: 14,
     overflow: "hidden",
   },
-  heroCell: { flex: 1, alignItems: "center", paddingVertical: 14, gap: 4 },
-  heroLbl: {
-    fontFamily: "Inter_700Bold",
-    fontSize: 9.5,
-    letterSpacing: 1.4,
+  statsStripe: { height: 3, opacity: 0.7 },
+  statsRow: {
+    flexDirection: "row",
+    paddingVertical: 14,
+    paddingHorizontal: 4,
   },
-  heroVal: {
-    fontFamily: "Inter_700Bold",
-    fontSize: 22,
-    fontVariant: ["tabular-nums"],
-  },
-  menuItem: {
+  statCell: { flex: 1, alignItems: "center", gap: 4 },
+  statVal: { fontFamily: "Inter_700Bold", fontSize: 22, fontVariant: ["tabular-nums"] },
+  statLbl: { fontFamily: "Inter_700Bold", fontSize: 8.5, letterSpacing: 1.3 },
+  statDiv: { width: 1, marginVertical: 4 },
+  sectionRow: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 2 },
+  sectionDot: { width: 6, height: 6, borderRadius: 3 },
+  sectionLabel: { fontFamily: "Inter_700Bold", fontSize: 10, letterSpacing: 1.4 },
+  menuCard: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
     padding: 14,
     borderWidth: 1,
-    borderRadius: 14,
+    borderRadius: 16,
   },
-  menuIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
+  iconBlock: {
+    width: 42,
+    height: 42,
+    borderRadius: 11,
     borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
   },
+  menuTitleRow: { flexDirection: "row", alignItems: "center", gap: 7, marginBottom: 3 },
+  menuTitle: { fontFamily: "Inter_700Bold", fontSize: 15 },
+  menuSubtitle: { fontSize: 12, lineHeight: 17 },
   badge: {
     paddingHorizontal: 8,
     height: 22,
@@ -276,12 +286,25 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  loungePromo: {
+  badgeText: {
+    color: "#001a0d",
+    fontFamily: "Inter_700Bold",
+    fontSize: 11,
+    fontVariant: ["tabular-nums"],
+  },
+  loungeCard: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     gap: 12,
     padding: 14,
-    borderRadius: 14,
+    borderRadius: 16,
     borderWidth: 1,
+  },
+  disclaimer: {
+    fontSize: 9.5,
+    textAlign: "center",
+    opacity: 0.5,
+    letterSpacing: 1.2,
+    marginTop: 4,
   },
 });

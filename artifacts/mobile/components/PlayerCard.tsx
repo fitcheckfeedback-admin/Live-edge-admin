@@ -2,7 +2,6 @@ import { Feather } from "@expo/vector-icons";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { PlayerAvatar } from "@/components/PlayerAvatar";
-import { SidePill } from "@/components/SidePill";
 import { WinProbBadge } from "@/components/WinProbBadge";
 import { useColors } from "@/hooks/useColors";
 import { formatTime } from "@/lib/format";
@@ -26,6 +25,58 @@ export interface PlayerGroup {
   bestProp: any;
 }
 
+function EdgeBar({ score }: { score: number }) {
+  const colors = useColors();
+  const pct = Math.min(Math.max((score / 10) * 100, 0), 100);
+  const barColor =
+    score >= 7.5
+      ? colors.primary
+      : score >= 5
+      ? colors.accent
+      : colors.mutedForeground;
+  return (
+    <View style={edgeStyles.wrap}>
+      <View
+        style={[
+          edgeStyles.track,
+          { backgroundColor: colors.backgroundSurface },
+        ]}
+      >
+        <View
+          style={[
+            edgeStyles.fill,
+            { width: `${pct}%` as any, backgroundColor: barColor },
+          ]}
+        />
+      </View>
+      <Text
+        style={[
+          edgeStyles.label,
+          { color: barColor, fontFamily: "Inter_700Bold" },
+        ]}
+      >
+        {score.toFixed(1)}
+      </Text>
+    </View>
+  );
+}
+
+const edgeStyles = StyleSheet.create({
+  wrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  track: {
+    flex: 1,
+    height: 3,
+    borderRadius: 2,
+    overflow: "hidden",
+  },
+  fill: { height: "100%", borderRadius: 2 },
+  label: { fontSize: 11, fontVariant: ["tabular-nums"], minWidth: 24 },
+});
+
 export function PlayerCard({
   group,
   selectedCount,
@@ -40,6 +91,9 @@ export function PlayerCard({
   const isOver = String(best.recommendation).includes("Over");
   const startTime = formatTime(group.gameStartTime);
   const isSelected = selectedCount > 0;
+  const edgeScore: number = best.edgeScore ?? 0;
+  const winProb: number = best.winProbability ?? 50;
+  const isStrong = winProb >= 65;
 
   return (
     <Pressable
@@ -48,171 +102,264 @@ export function PlayerCard({
         styles.card,
         {
           backgroundColor: colors.card,
-          borderColor: isSelected ? colors.primary : colors.cardBorder,
+          borderColor: isSelected
+            ? colors.primary
+            : isStrong
+            ? "rgba(0,255,135,0.18)"
+            : colors.cardBorder,
           borderWidth: isSelected ? 1.5 : 1,
-          borderRadius: 14,
-          opacity: pressed ? 0.85 : 1,
-          transform: [{ scale: pressed ? 0.99 : 1 }],
+          opacity: pressed ? 0.9 : 1,
+          transform: [{ scale: pressed ? 0.985 : 1 }],
         },
+        isSelected && { shadowColor: colors.primary, shadowOpacity: 0.2, shadowRadius: 12, shadowOffset: { width: 0, height: 0 } },
       ]}
     >
-      {/* Player header */}
-      <View style={styles.headerRow}>
-        <PlayerAvatar src={group.playerImage} name={group.playerName} size={56} />
-        <View style={{ flex: 1, minWidth: 0 }}>
-          <View style={styles.nameRow}>
-            <View style={{ flex: 1 }}>
-              <Text
-                style={[styles.playerName, { color: colors.foreground }]}
-                numberOfLines={1}
-              >
-                {group.playerName}
-              </Text>
-              <Text
-                style={[styles.subText, { color: colors.mutedForeground }]}
-                numberOfLines={1}
-              >
-                {group.sport} · {group.teamAbbr}
-                {group.position ? ` · ${group.position}` : ""}
-              </Text>
-              <Text
-                style={[styles.subText, { color: colors.mutedForeground }]}
-                numberOfLines={1}
-              >
-                vs {group.opponentAbbr}
-                {startTime ? ` · ${startTime}` : ""}
-              </Text>
-            </View>
-            <Feather name="chevron-right" size={18} color={colors.mutedForeground} />
+      {/* Top: sport tag + time + edge */}
+      <View style={styles.topMeta}>
+        <View
+          style={[
+            styles.sportTag,
+            { backgroundColor: colors.backgroundSurface, borderColor: colors.cardBorder },
+          ]}
+        >
+          <Text style={[styles.sportTagText, { color: colors.mutedForeground }]}>
+            {group.sport}
+          </Text>
+        </View>
+
+        <Text style={[styles.timeText, { color: colors.mutedForeground }]}>
+          {group.teamAbbr} vs {group.opponentAbbr}
+          {startTime ? `  ·  ${startTime}` : ""}
+        </Text>
+
+        {isSelected && (
+          <View
+            style={[
+              styles.inSlipTag,
+              { backgroundColor: colors.primaryGlow, borderColor: colors.cardBorderActive },
+            ]}
+          >
+            <Feather name="bookmark" size={9} color={colors.primary} />
+            <Text style={[styles.inSlipText, { color: colors.primary }]}>
+              {selectedCount}
+            </Text>
           </View>
-          {isSelected && (
+        )}
+      </View>
+
+      {/* Main content */}
+      <View style={styles.mainRow}>
+        {/* Avatar */}
+        <View style={styles.avatarWrap}>
+          <PlayerAvatar
+            src={group.playerImage}
+            name={group.playerName}
+            size={52}
+          />
+          {isStrong && (
             <View
               style={[
-                styles.slipBadge,
-                {
-                  backgroundColor: "rgba(34,197,94,0.15)",
-                  borderColor: "rgba(34,197,94,0.4)",
-                },
+                styles.strongDot,
+                { backgroundColor: colors.primary, borderColor: colors.card },
+              ]}
+            />
+          )}
+        </View>
+
+        {/* Player info */}
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text
+            style={[styles.playerName, { color: colors.foreground }]}
+            numberOfLines={1}
+          >
+            {group.playerName}
+          </Text>
+          <Text
+            style={[styles.posText, { color: colors.mutedForeground }]}
+            numberOfLines={1}
+          >
+            {group.position ?? group.sport}
+            {group.position ? ` · ${group.sport}` : ""}
+          </Text>
+
+          {/* Edge score bar */}
+          <View style={{ marginTop: 8, marginBottom: 2 }}>
+            <Text
+              style={[styles.edgeLabel, { color: colors.mutedForeground }]}
+            >
+              EDGE
+            </Text>
+            <EdgeBar score={edgeScore} />
+          </View>
+        </View>
+
+        {/* Right: win prob + side */}
+        <View style={styles.rightCol}>
+          <WinProbBadge probability={winProb} />
+          <View
+            style={[
+              styles.sidePill,
+              {
+                backgroundColor: isOver ? colors.overSoft : colors.underSoft,
+                borderColor: isOver ? colors.overBorder : colors.underBorder,
+              },
+            ]}
+          >
+            <Text
+              style={[
+                styles.sideText,
+                { color: isOver ? colors.over : colors.under },
               ]}
             >
-              <Text
-                style={{
-                  color: colors.primary,
-                  fontFamily: "Inter_700Bold",
-                  fontSize: 10,
-                }}
-              >
-                {selectedCount} in slip
-              </Text>
-            </View>
-          )}
+              {isOver ? "▲" : "▼"} {isOver ? "OVER" : "UNDER"}
+            </Text>
+          </View>
         </View>
       </View>
 
-      {/* Best Pick row */}
+      {/* Best prop highlight row */}
       <View
         style={[
           styles.bestRow,
           {
-            backgroundColor: "rgba(251,191,36,0.05)",
-            borderColor: "rgba(251,191,36,0.3)",
+            backgroundColor: "rgba(245,158,11,0.05)",
+            borderColor: "rgba(245,158,11,0.18)",
           },
         ]}
       >
-        <View
+        <View style={styles.bestLeft}>
+          <Feather name="star" size={10} color="#f59e0b" />
+          <Text style={styles.bestLabel}>BEST PICK</Text>
+        </View>
+        <Text
           style={[
-            styles.bestBadge,
-            {
-              backgroundColor: "rgba(251,191,36,0.2)",
-              borderColor: "rgba(251,191,36,0.45)",
-            },
+            styles.lineNum,
+            { color: colors.foreground, fontVariant: ["tabular-nums"] },
           ]}
         >
-          <Feather name="star" size={10} color="#fcd34d" />
-          <Text
-            style={{
-              color: "#fcd34d",
-              fontFamily: "Inter_700Bold",
-              fontSize: 9,
-              letterSpacing: 0.8,
-            }}
-          >
-            BEST
-          </Text>
-        </View>
-        <View style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: 6 }}>
-          <Text
-            style={[
-              styles.line,
-              { color: colors.foreground, fontVariant: ["tabular-nums"] },
-            ]}
-          >
-            {best.line}
-          </Text>
-          <Text
-            style={{ color: colors.mutedForeground, fontSize: 11, flex: 1 }}
-            numberOfLines={1}
-          >
-            {best.propType}
-          </Text>
-        </View>
-        <WinProbBadge probability={best.winProbability ?? 50} />
-        <SidePill side={isOver ? "Over" : "Under"} />
+          {best.line}
+        </Text>
+        <Text
+          style={[styles.propTypeText, { color: colors.mutedForeground }]}
+          numberOfLines={1}
+        >
+          {best.propType}
+        </Text>
+        <Feather name="chevron-right" size={14} color={colors.mutedForeground} />
       </View>
-
-      <Text
-        style={{
-          color: colors.mutedForeground,
-          fontSize: 10.5,
-          marginTop: 8,
-          textAlign: "center",
-          opacity: 0.7,
-        }}
-      >
-        Tap for all {group.props.length} stat{" "}
-        {group.props.length === 1 ? "category" : "categories"}
-      </Text>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  card: { padding: 14 },
-  headerRow: { flexDirection: "row", alignItems: "flex-start", gap: 12, marginBottom: 12 },
-  nameRow: { flexDirection: "row", alignItems: "flex-start", gap: 8 },
+  card: {
+    borderRadius: 16,
+    padding: 14,
+    gap: 12,
+    overflow: "hidden",
+  },
+  topMeta: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  sportTag: {
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 5,
+    borderWidth: 1,
+  },
+  sportTagText: {
+    fontFamily: "Inter_700Bold",
+    fontSize: 9,
+    letterSpacing: 1.2,
+  },
+  timeText: {
+    fontSize: 11,
+    flex: 1,
+  },
+  inSlipTag: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 5,
+    borderWidth: 1,
+  },
+  inSlipText: {
+    fontFamily: "Inter_700Bold",
+    fontSize: 10,
+    fontVariant: ["tabular-nums"],
+  },
+  mainRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 12,
+  },
+  avatarWrap: { position: "relative" },
+  strongDot: {
+    position: "absolute",
+    bottom: 0,
+    right: -2,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    borderWidth: 2,
+  },
   playerName: {
     fontFamily: "Inter_700Bold",
-    fontSize: 16,
-    lineHeight: 19,
+    fontSize: 16.5,
+    letterSpacing: -0.3,
   },
-  subText: { fontSize: 11, marginTop: 2 },
-  slipBadge: {
-    alignSelf: "flex-start",
-    marginTop: 6,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
+  posText: { fontSize: 11, marginTop: 2 },
+  edgeLabel: {
+    fontFamily: "Inter_700Bold",
+    fontSize: 8.5,
+    letterSpacing: 1.3,
+    marginBottom: 4,
+  },
+  rightCol: {
+    alignItems: "flex-end",
+    gap: 8,
+  },
+  sidePill: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
     borderWidth: 1,
+  },
+  sideText: {
+    fontFamily: "Inter_700Bold",
+    fontSize: 10,
+    letterSpacing: 0.8,
   },
   bestRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    padding: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 9,
     borderRadius: 10,
     borderWidth: 1,
   },
-  bestBadge: {
+  bestLeft: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 3,
-    paddingHorizontal: 6,
-    paddingVertical: 3,
-    borderRadius: 4,
-    borderWidth: 1,
+    gap: 4,
   },
-  line: {
+  bestLabel: {
+    color: "#f59e0b",
     fontFamily: "Inter_700Bold",
-    fontSize: 20,
+    fontSize: 8.5,
+    letterSpacing: 1,
+  },
+  lineNum: {
+    fontFamily: "Inter_700Bold",
+    fontSize: 18,
+  },
+  propTypeText: {
+    fontSize: 11,
+    flex: 1,
   },
 });

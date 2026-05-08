@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { useColors } from "@/hooks/useColors";
 
@@ -13,46 +13,61 @@ export function SportFilter({
   onChange: (v: SportFilterValue) => void;
 }) {
   const colors = useColors();
+
   return (
-    <View style={styles.row}>
-      {SPORTS.map((s) => {
-        const active = value === s;
-        return (
-          <Pressable
-            key={s}
-            onPress={() => onChange(s)}
-            style={({ pressed }) => [
-              styles.pill,
-              {
-                backgroundColor: active ? colors.primary : "transparent",
-                borderColor: active ? colors.primary : colors.cardBorder,
-                opacity: pressed ? 0.85 : 1,
-              },
-            ]}
-          >
-            <Text
-              style={{
-                color: active ? colors.primaryForeground : colors.foreground,
-                fontFamily: "Inter_700Bold",
-                fontSize: 12,
-                letterSpacing: 0.4,
-              }}
+    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+      <View style={styles.row}>
+        {SPORTS.map((s) => {
+          const active = value === s;
+          return (
+            <Pressable
+              key={s}
+              onPress={() => onChange(s)}
+              style={({ pressed }) => [
+                styles.pill,
+                {
+                  backgroundColor: active
+                    ? colors.primaryGlow
+                    : colors.backgroundSurface,
+                  borderColor: active
+                    ? colors.cardBorderActive
+                    : colors.cardBorder,
+                  opacity: pressed ? 0.8 : 1,
+                  transform: [{ scale: pressed ? 0.97 : 1 }],
+                },
+              ]}
             >
-              {s}
-            </Text>
-          </Pressable>
-        );
-      })}
-    </View>
+              <Text
+                style={[
+                  styles.label,
+                  {
+                    color: active
+                      ? colors.primary
+                      : colors.mutedForeground,
+                    fontFamily: active ? "Inter_700Bold" : "Inter_600SemiBold",
+                  },
+                ]}
+              >
+                {s}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   row: { flexDirection: "row", gap: 8 },
   pill: {
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 999,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
     borderWidth: 1,
+  },
+  label: {
+    fontSize: 12,
+    letterSpacing: 0.5,
   },
 });

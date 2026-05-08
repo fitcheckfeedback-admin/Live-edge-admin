@@ -2,6 +2,15 @@ import { StyleSheet, Text, View } from "react-native";
 
 import { useColors } from "@/hooks/useColors";
 
+/**
+ * Win probability badge.
+ *
+ * Thresholds match the backend clamp (32–88%):
+ *  ≥ 70%  → green  (High confidence)
+ *  ≥ 58%  → amber  (Medium)
+ *  ≥ 50%  → slate  (Coin flip)
+ *  < 50%  → red    (Avoid)
+ */
 export function WinProbBadge({
   probability,
   size = "md",
@@ -10,32 +19,34 @@ export function WinProbBadge({
   size?: "sm" | "md" | "lg";
 }) {
   const colors = useColors();
-  const wp = Math.max(0, Math.min(100, probability));
-  let bg = colors.muted;
-  let fg = colors.mutedForeground;
-  let border = colors.cardBorder;
+  const wp = Math.max(0, Math.min(100, Math.round(probability)));
 
-  if (wp >= 65) {
-    bg = "rgba(16,185,129,0.18)";
-    fg = "#6ee7b7";
-    border = "rgba(16,185,129,0.45)";
-  } else if (wp >= 55) {
-    bg = "rgba(251,191,36,0.18)";
-    fg = "#fbbf24";
-    border = "rgba(251,191,36,0.4)";
+  // Color tiers
+  let bg: string;
+  let fg: string;
+  let border: string;
+
+  if (wp >= 70) {
+    bg = colors.overSoft;
+    fg = colors.over;
+    border = colors.overBorder;
+  } else if (wp >= 58) {
+    bg = colors.accentGlow;
+    fg = colors.accent;
+    border = `${colors.accent}50`;
   } else if (wp >= 50) {
-    bg = "rgba(148,163,184,0.18)";
-    fg = "#cbd5e1";
-    border = "rgba(148,163,184,0.3)";
+    bg = colors.backgroundSurface;
+    fg = colors.mutedForegroundBright;
+    border = colors.cardBorder;
   } else {
-    bg = "rgba(239,68,68,0.15)";
-    fg = "#fca5a5";
-    border = "rgba(239,68,68,0.4)";
+    bg = colors.underSoft;
+    fg = colors.under;
+    border = colors.underBorder;
   }
 
-  const padH = size === "lg" ? 10 : size === "sm" ? 6 : 8;
-  const padV = size === "lg" ? 4 : 2;
-  const fontSize = size === "lg" ? 14 : size === "sm" ? 10 : 11;
+  const padH = size === "lg" ? 12 : size === "sm" ? 6 : 9;
+  const padV = size === "lg" ? 5 : size === "sm" ? 2 : 3;
+  const fontSize = size === "lg" ? 14 : size === "sm" ? 10 : 11.5;
 
   return (
     <View
@@ -44,7 +55,6 @@ export function WinProbBadge({
         {
           backgroundColor: bg,
           borderColor: border,
-          borderRadius: 999,
           paddingHorizontal: padH,
           paddingVertical: padV,
         },
@@ -56,6 +66,7 @@ export function WinProbBadge({
           fontSize,
           fontFamily: "Inter_700Bold",
           fontVariant: ["tabular-nums"],
+          letterSpacing: 0.3,
         }}
       >
         {wp}% WIN
@@ -65,5 +76,9 @@ export function WinProbBadge({
 }
 
 const styles = StyleSheet.create({
-  badge: { borderWidth: 1, alignSelf: "flex-start" },
+  badge: {
+    borderWidth: 1,
+    borderRadius: 999,
+    alignSelf: "flex-start",
+  },
 });
