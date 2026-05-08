@@ -85,26 +85,37 @@ workflows:
           cd artifacts/mobile/ios
           xcode-project use-profiles
 
-      - name: Increment build number
+      - name: Set unique build number
         script: |
-          # Apple App Store Connect API requires the NUMERIC Apple App ID
-          # (6765934371 for Live Edge Engine), NOT the bundle identifier
-          # string. Passing the bundle ID returns no result, the lookup
-          # falls back to 0, and the upload then collides with build #1
-          # already on App Store Connect ("attribute value already used").
-          APP_APPLE_ID=6765934371
+          # Use Codemagic's per-workflow $BUILD_NUMBER (monotonically
+          # increases on every build attempt, never reuses) plus a +100
+          # offset to safely skip past any builds already uploaded to
+          # App Store Connect during prior manual experiments.
+          # This guarantees a unique CFBundleVersion every run, avoiding
+          # Apple's "attribute value already used" error on upload.
+          set -e
+          NEW_BUILD_NUMBER=$(($BUILD_NUMBER + 100))
+          echo "Codemagic BUILD_NUMBER=$BUILD_NUMBER  ->  setting CFBundleVersion=$NEW_BUILD_NUMBER"
+
           cd artifacts/mobile/ios
-          LATEST_BUILD_NUMBER=$(app-store-connect get-latest-app-store-build-number "$APP_APPLE_ID" 2>/dev/null || echo 0)
-          # Fallback to Codemagic's monotonically-increasing $BUILD_NUMBER if
-          # the API call returns 0 for any reason (e.g. brand-new app with
-          # no builds yet). $BUILD_NUMBER is guaranteed unique per build.
-          if [ "$LATEST_BUILD_NUMBER" = "0" ]; then
-            NEW_BUILD_NUMBER=$BUILD_NUMBER
-          else
-            NEW_BUILD_NUMBER=$(($LATEST_BUILD_NUMBER + 1))
+          # agvtool requires running from the dir containing the .xcodeproj
+          agvtool new-version -all "$NEW_BUILD_NUMBER"
+
+          # Verify the change actually landed in Info.plist — if it didn't,
+          # fail loudly here rather than at the upload step 5 minutes later.
+          PLIST="LiveEdgeEngine/Info.plist"
+          if [ ! -f "$PLIST" ]; then
+            PLIST=$(find . -maxdepth 3 -name Info.plist -not -path "*/Pods/*" | head -1)
           fi
-          echo "Setting build number to $NEW_BUILD_NUMBER (latest on App Store Connect: $LATEST_BUILD_NUMBER)"
-          agvtool new-version -all $NEW_BUILD_NUMBER
+          echo "Info.plist path: $PLIST"
+          ACTUAL=$(/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "$PLIST")
+          echo "CFBundleVersion now: $ACTUAL"
+          if [ "$ACTUAL" != "$NEW_BUILD_NUMBER" ]; then
+            echo "ERROR: agvtool did not update CFBundleVersion. Forcing via PlistBuddy."
+            /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $NEW_BUILD_NUMBER" "$PLIST"
+            ACTUAL=$(/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "$PLIST")
+            echo "CFBundleVersion after PlistBuddy: $ACTUAL"
+          fi
 
       - name: Pre-bundle JS (surface Metro errors clearly)
         script: |
