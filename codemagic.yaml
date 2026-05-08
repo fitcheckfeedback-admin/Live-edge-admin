@@ -32,10 +32,16 @@ workflows:
           cd artifacts/mobile/ios
           pod install
 
+      - name: Generate signing certificate private key
+        script: |
+          ssh-keygen -t rsa -b 2048 -m PEM -f /tmp/apple_cert.key -q -N ""
+
       - name: Fetch / create signing files
         script: |
           app-store-connect fetch-signing-files "$BUNDLE_ID" \
+            --platform IOS \
             --type IOS_APP_STORE \
+            --certificate-key-path /tmp/apple_cert.key \
             --create
 
       - name: Initialize keychain
