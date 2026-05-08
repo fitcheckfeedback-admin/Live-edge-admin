@@ -1,0 +1,54 @@
+Build failed :|
+Step 12 script `Pre-bundle JS (surface Metro errors clearly)` exited with status code 1
+Resolved entry file: /Users/builder/clone/artifacts/mobile/node_modules/expo-router/entry.js
+React Compiler enabled
+Starting Metro Bundler
+iOS Bundling failed 387ms node_modules/.pnpm/expo-router@6.0.23_@types+react-dom@19.1.11_@types+react@19.1.17__@types+react@19.1.17__950497bba3dbc1f6b1863109f86ef06a/node_modules/expo-router/entry.js (1 module)
+Unable to resolve module @expo/metro-runtime from /Users/builder/clone/node_modules/.pnpm/expo-router@6.0.23_@types+react-dom@19.1.11_@types+react@19.1.17__@types+react@19.1.17__950497bba3dbc1f6b1863109f86ef06a/node_modules/expo-router/entry-classic.js: @expo/metro-runtime could not be found within the project or in these directories:
+  node_modules
+  ../../node_modules
+  1 | // `@expo/metro-runtime` MUST be the first import to ensure Fast Refresh works
+  2 | // on web.
+> 3 | import '@expo/metro-runtime';
+    |         ^
+  4 |
+  5 | import { App } from 'expo-router/build/qualified-entry';
+  6 | import { renderRootComponent } from 'expo-router/build/renderRootComponent';
+
+Import stack:
+
+ node_modules/.pnpm/expo-router@6.0.23_@types+react-dom@19.1.11_@types+react@19.1.17__@types+react@19.1.17__950497bba3dbc1f6b1863109f86ef06a/node_modules/expo-router/entry-classic.js
+ | import "@expo/metro-runtime"
+
+ node_modules/.pnpm/expo-router@6.0.23_@types+react-dom@19.1.11_@types+react@19.1.17__@types+react@19.1.17__950497bba3dbc1f6b1863109f86ef06a/node_modules/expo-router/entry.js
+ | import "expo-router/entry-classic"
+
+ 
+ | import "/Users/builder/clone/artifacts/mobile/node_modules/expo-router/entry.js"
+
+Error: Unable to resolve module @expo/metro-runtime from /Users/builder/clone/node_modules/.pnpm/expo-router@6.0.23_@types+react-dom@19.1.11_@types+react@19.1.17__@types+react@19.1.17__950497bba3dbc1f6b1863109f86ef06a/node_modules/expo-router/entry-classic.js: @expo/metro-runtime could not be found within the project or in these directories:
+  node_modules
+  ../../node_modules
+  1 | // `@expo/metro-runtime` MUST be the first import to ensure Fast Refresh works
+  2 | // on web.
+> 3 | import '@expo/metro-runtime';
+    |         ^
+  4 |
+  5 | import { App } from 'expo-router/build/qualified-entry';
+  6 | import { renderRootComponent } from 'expo-router/build/renderRootComponent';
+
+Import stack:
+
+ node_modules/.pnpm/expo-router@6.0.23_@types+react-dom@19.1.11_@types+react@19.1.17__@types+react@19.1.17__950497bba3dbc1f6b1863109f86ef06a/node_modules/expo-router/entry-classic.js
+ | import "@expo/metro-runtime"
+
+ node_modules/.pnpm/expo-router@6.0.23_@types+react-dom@19.1.11_@types+react@19.1.17__@types+react@19.1.17__950497bba3dbc1f6b1863109f86ef06a/node_modules/expo-router/entry.js
+ | import "expo-router/entry-classic"
+
+ 
+ | import "/Users/builder/clone/artifacts/mobile/node_modules/expo-router/entry.js"
+
+
+
+Build failed :|
+Step 12 script `Pre-bundle JS (surface Metro errors clearly)` exited with status code 1
