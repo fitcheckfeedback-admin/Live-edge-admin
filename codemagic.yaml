@@ -36,29 +36,15 @@ workflows:
         script: |
           ssh-keygen -t rsa -b 2048 -m PEM -f /tmp/apple_cert.key -q -N ""
 
-      - name: Revoke existing distribution certificates
+      - name: List existing distribution certificates (READ-ONLY)
         script: |
-          # Apple allows only 1 active distribution cert (combined across
-          # IOS_DISTRIBUTION + DISTRIBUTION/Apple Distribution types).
-          # Revoke ALL of them so fetch-signing-files can create a fresh one
-          # tied to the private key we just generated.
-          for CERT_TYPE in IOS_DISTRIBUTION DISTRIBUTION; do
-            echo "--- Checking certificates of type: $CERT_TYPE ---"
-            CERT_IDS=$(app-store-connect certificates list \
-              --type "$CERT_TYPE" \
-              --json 2>/dev/null | jq -r '.[].id' || true)
-            if [ -z "$CERT_IDS" ]; then
-              echo "No $CERT_TYPE certificates to revoke."
-            else
-              for ID in $CERT_IDS; do
-                echo "Revoking $CERT_TYPE certificate $ID"
-                app-store-connect certificates delete "$ID" --ignore-not-found || true
-              done
-            fi
-          done
-          echo "--- Remaining distribution certs after revocation ---"
-          app-store-connect certificates list --type IOS_DISTRIBUTION --json 2>/dev/null | jq -r '.[] | "IOS_DIST: \(.id)"' || true
-          app-store-connect certificates list --type DISTRIBUTION --json 2>/dev/null | jq -r '.[] | "DIST:     \(.id)"' || true
+          # SAFETY: revocation is disabled because the same Apple account is
+          # shared with another app currently in TestFlight / App Store review.
+          # We only LIST existing certs here so we can pick a strategy.
+          echo "--- IOS_DISTRIBUTION certs ---"
+          app-store-connect certificates list --type IOS_DISTRIBUTION --json 2>/dev/null | jq -r '.[] | "id=\(.id)  name=\(.attributes.name)  created=\(.attributes.displayName)"' || true
+          echo "--- DISTRIBUTION (Apple Distribution) certs ---"
+          app-store-connect certificates list --type DISTRIBUTION --json 2>/dev/null | jq -r '.[] | "id=\(.id)  name=\(.attributes.name)  created=\(.attributes.displayName)"' || true
 
       - name: Fetch / create signing files
         script: |
