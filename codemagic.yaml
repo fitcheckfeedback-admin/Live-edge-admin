@@ -96,15 +96,24 @@ workflows:
       - name: Pre-bundle JS (surface Metro errors clearly)
         script: |
           # Runs Metro standalone so any error (missing module, syntax, etc.)
-          # appears in this short log rather than buried inside the 14k-line
-          # Xcode archive log. If this fails, the error is the FIRST red text.
+          # appears in this short log rather than buried inside the Xcode log.
           set -e
           cd artifacts/mobile
+          ENTRY="$(pwd)/node_modules/expo-router/entry.js"
+          echo "Resolved entry file: $ENTRY"
+          if [ ! -f "$ENTRY" ]; then
+            echo "ERROR: entry file missing. Listing artifacts/mobile/node_modules/expo-router/:"
+            ls -la "$(pwd)/node_modules/expo-router/" || echo "  expo-router dir not found"
+            echo ""
+            echo "Listing artifacts/mobile/node_modules (top level):"
+            ls "$(pwd)/node_modules/" | head -40
+            exit 1
+          fi
           mkdir -p /tmp/expo-bundle-debug
           npx expo export:embed \
             --platform ios \
             --dev false \
-            --entry-file node_modules/expo-router/entry.js \
+            --entry-file "$ENTRY" \
             --bundle-output /tmp/expo-bundle-debug/main.jsbundle \
             --assets-dest /tmp/expo-bundle-debug/assets
 
