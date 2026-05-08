@@ -1,8 +1,13 @@
 uploads = []
-outputs = []
 
 [[generated]]
 id = "DlixiIsM8pwoYjwOyYfSb"
 uri = "file://artifacts/mobile/assets/images/icon.png"
 type = "image"
 title = "live edge mobile icon"
+
+[[outputs]]
+id = "Zbw30RNI6O0IOths4X0-k"
+uri = "file://exports/live-edge-engine.zip"
+type = "unspecified"
+title = "Live Edge Engine — full source code (zip)"
