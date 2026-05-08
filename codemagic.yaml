@@ -2,6 +2,8 @@ workflows:
   ios-testflight:
     name: iOS TestFlight
     max_build_duration: 90
+    integrations:
+      app_store_connect: Fit Check
     environment:
       node: 20.11.0
       xcode: latest
