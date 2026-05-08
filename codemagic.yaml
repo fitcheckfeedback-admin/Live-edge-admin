@@ -3,38 +3,46 @@ workflows:
     name: iOS TestFlight
     max_build_duration: 90
     integrations:
-      app_store_connect: Fit Check
+      app_store_connect: "Fit Check"
     environment:
       node: 20.11.0
       xcode: latest
       cocoapods: default
       vars:
         BUNDLE_ID: "com.liveedge.engine"
+        EAS_NO_VCS: "1"
       groups:
-        - app_store_credentials
+        - app_store_credentials   # must contain EXPO_TOKEN
     scripts:
-      - name: Install pnpm
-        script: npm install -g pnpm@9
+      - name: Enable pnpm via corepack
+        script: |
+          corepack enable
+          corepack prepare pnpm@9.15.0 --activate
+          pnpm --version
 
-      - name: Install workspace dependencies
-        script: pnpm install --frozen-lockfile
+      - name: Verify EXPO_TOKEN is set
+        script: |
+          if [ -z "$EXPO_TOKEN" ]; then
+            echo "ERROR: EXPO_TOKEN is required. Add it to the 'app_store_credentials' environment group in Codemagic (get one from expo.dev → Account Settings → Access Tokens)."
+            exit 1
+          fi
 
-      - name: Install EAS CLI
-        script: npm install -g eas-cli
+      - name: Install mobile dependencies
+        script: |
+          pnpm install --filter "@workspace/mobile..." --frozen-lockfile
 
-      - name: Build iOS app via EAS
+      - name: Build iOS .ipa locally via EAS
         script: |
           cd artifacts/mobile
-          eas build \
+          npx --yes eas-cli@latest build \
             --platform ios \
             --profile production \
+            --local \
             --non-interactive \
-            --no-wait=false \
-            --output ../../ios-build.ipa
+            --output "$CM_BUILD_DIR/ios-build.ipa"
 
     artifacts:
       - ios-build.ipa
-      - /tmp/xcodebuild_logs/*.log
 
     publishing:
       app_store_connect:
