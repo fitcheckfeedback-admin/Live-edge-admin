@@ -1,0 +1,45 @@
+workflows:
+  ios-testflight:
+    name: iOS TestFlight
+    max_build_duration: 90
+    environment:
+      node: 20.11.0
+      xcode: latest
+      cocoapods: default
+      vars:
+        BUNDLE_ID: "com.liveedge.engine"
+      groups:
+        - app_store_credentials
+    scripts:
+      - name: Install pnpm
+        script: npm install -g pnpm
+
+      - name: Install dependencies
+        script: |
+          cd artifacts/mobile
+          pnpm install
+
+      - name: Set up EAS
+        script: |
+          npm install -g eas-cli
+          cd artifacts/mobile
+          eas build:configure --platform ios --non-interactive || true
+
+      - name: Build iOS app
+        script: |
+          cd artifacts/mobile
+          eas build \
+            --platform ios \
+            --profile production \
+            --non-interactive \
+            --output ../../ios-build.ipa
+
+    artifacts:
+      - ios-build.ipa
+      - /tmp/xcodebuild_logs/*.log
+
+    publishing:
+      app_store_connect:
+        auth: api_key
+        submit_to_testflight: true
+        submit_to_app_store: false
