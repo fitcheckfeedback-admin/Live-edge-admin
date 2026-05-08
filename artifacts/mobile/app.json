@@ -14,7 +14,8 @@
       "backgroundColor": "#0c1426"
     },
     "ios": {
-      "supportsTablet": false
+      "supportsTablet": false,
+      "bundleIdentifier": "com.liveedge.engine"
     },
     "android": {},
     "web": {
