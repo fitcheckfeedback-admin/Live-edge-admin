@@ -93,6 +93,21 @@ workflows:
           echo "Setting build number to $NEW_BUILD_NUMBER"
           agvtool new-version -all $NEW_BUILD_NUMBER
 
+      - name: Pre-bundle JS (surface Metro errors clearly)
+        script: |
+          # Runs Metro standalone so any error (missing module, syntax, etc.)
+          # appears in this short log rather than buried inside the 14k-line
+          # Xcode archive log. If this fails, the error is the FIRST red text.
+          set -e
+          cd artifacts/mobile
+          mkdir -p /tmp/expo-bundle-debug
+          npx expo export:embed \
+            --platform ios \
+            --dev false \
+            --entry-file node_modules/expo-router/entry.js \
+            --bundle-output /tmp/expo-bundle-debug/main.jsbundle \
+            --assets-dest /tmp/expo-bundle-debug/assets
+
       - name: Build iOS .ipa
         script: |
           cd artifacts/mobile/ios
